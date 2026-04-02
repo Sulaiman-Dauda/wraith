@@ -1115,7 +1115,7 @@ fn run_repl(
                     let elapsed = session_start.elapsed().as_secs_f64();
                     let total_tokens = total_input_tokens + total_output_tokens;
                     println!(
-                        "\n  \x1b[38;2;58;90;120m👋 Session complete · {turn_count} turns · {total_tokens} tokens · {elapsed:.1}s\x1b[0m\n"
+                        "\n  \x1b[38;2;58;90;120m◇ Session complete · {turn_count} turns · {total_tokens} tokens · {elapsed:.1}s\x1b[0m\n"
                     );
                     break;
                 }
@@ -1149,7 +1149,7 @@ fn run_repl(
                 let elapsed = session_start.elapsed().as_secs_f64();
                 let total_tokens = total_input_tokens + total_output_tokens;
                 println!(
-                    "\n  \x1b[38;2;58;90;120m👋 Session complete · {turn_count} turns · {total_tokens} tokens · {elapsed:.1}s\x1b[0m\n"
+                    "\n  \x1b[38;2;58;90;120m◇ Session complete · {turn_count} turns · {total_tokens} tokens · {elapsed:.1}s\x1b[0m\n"
                 );
                 break;
             }
@@ -3048,7 +3048,7 @@ fn format_internal_prompt_progress_line(
     match event {
         InternalPromptProgressEvent::Started => {
             format!(
-                "🧭 {} status · planning started · {status}",
+                "◆ {} status · planning started · {status}",
                 snapshot.command_label
             )
         }
@@ -3542,7 +3542,7 @@ fn format_tool_call_start(name: &str, input: &str) -> String {
         "bash" | "Bash" => ("⚙", format_bash_call(&parsed)),
         "read_file" | "Read" => {
             let path = extract_tool_path(&parsed);
-            ("📄", format!("\x1b[2mReading {path}…\x1b[0m"))
+            ("▸", format!("\x1b[2mReading {path}…\x1b[0m"))
         }
         "write_file" | "Write" => {
             let path = extract_tool_path(&parsed);
@@ -3550,7 +3550,7 @@ fn format_tool_call_start(name: &str, input: &str) -> String {
                 .get("content")
                 .and_then(|value| value.as_str())
                 .map_or(0, |content| content.lines().count());
-            ("✏️", format!("\x1b[1;32mWriting {path}\x1b[0m \x1b[2m({lines} lines)\x1b[0m"))
+            ("▲", format!("\x1b[1;32mWriting {path}\x1b[0m \x1b[2m({lines} lines)\x1b[0m"))
         }
         "edit_file" | "Edit" => {
             let path = extract_tool_path(&parsed);
@@ -3567,11 +3567,11 @@ fn format_tool_call_start(name: &str, input: &str) -> String {
             let preview = format_patch_preview(old_value, new_value)
                 .map(|preview| format!("\n{preview}"))
                 .unwrap_or_default();
-            ("📝", format!("\x1b[1;33mEditing {path}\x1b[0m{}", preview))
+            ("◈", format!("\x1b[1;33mEditing {path}\x1b[0m{}", preview))
         }
-        "glob_search" | "Glob" => ("🔎", format_search_start_detail(&parsed)),
-        "grep_search" | "Grep" => ("🔎", format_search_start_detail(&parsed)),
-        "web_search" | "WebSearch" => ("🌐", parsed
+        "glob_search" | "Glob" => ("⌕", format_search_start_detail(&parsed)),
+        "grep_search" | "Grep" => ("⌕", format_search_start_detail(&parsed)),
+        "web_search" | "WebSearch" => ("◉", parsed
             .get("query")
             .and_then(|value| value.as_str())
             .unwrap_or("?")
@@ -3741,7 +3741,7 @@ fn format_read_result(icon: &str, parsed: &serde_json::Value) -> String {
     let end_line = start_line.saturating_add(num_lines.saturating_sub(1));
 
     format!(
-        "{icon} \x1b[2m📄 Read {path} (lines {}-{} of {})\x1b[0m\n{}",
+        "{icon} \x1b[2mRead {path} (lines {}-{} of {})\x1b[0m\n{}",
         start_line,
         end_line.max(start_line),
         total_lines,
@@ -3760,7 +3760,7 @@ fn format_write_result(icon: &str, parsed: &serde_json::Value) -> String {
         .and_then(|value| value.as_str())
         .map_or(0, |content| content.lines().count());
     format!(
-        "{icon} \x1b[1;32m✏️ {} {path}\x1b[0m \x1b[2m({line_count} lines)\x1b[0m",
+        "{icon} \x1b[1;32m{} {path}\x1b[0m \x1b[2m({line_count} lines)\x1b[0m",
         if kind == "create" { "Wrote" } else { "Updated" },
     )
 }
@@ -3809,8 +3809,8 @@ fn format_edit_result(icon: &str, parsed: &serde_json::Value) -> String {
     });
 
     match preview {
-        Some(preview) => format!("{icon} \x1b[1;33m📝 Edited {path}{suffix}\x1b[0m\n{preview}"),
-        None => format!("{icon} \x1b[1;33m📝 Edited {path}{suffix}\x1b[0m"),
+        Some(preview) => format!("{icon} \x1b[1;33mEdited {path}{suffix}\x1b[0m\n{preview}"),
+        None => format!("{icon} \x1b[1;33mEdited {path}{suffix}\x1b[0m"),
     }
 }
 
@@ -4958,7 +4958,7 @@ mod tests {
             r#"{"file":{"filePath":"src/main.rs","content":"hello","numLines":1,"startLine":1,"totalLines":1}}"#,
             false,
         );
-        assert!(done.contains("📄 Read src/main.rs"));
+        assert!(done.contains("Read src/main.rs"));
         assert!(done.contains("hello"));
     }
 
