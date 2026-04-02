@@ -28,7 +28,7 @@ use commands::{
 };
 use init::initialize_repo;
 use plugins::{PluginManager, PluginManagerConfig};
-use render::{MarkdownStreamState, Spinner, TerminalRenderer};
+use render::{render_glass_panel, render_wraith_banner, MarkdownStreamState, Spinner, TerminalRenderer};
 use runtime::{
     clear_oauth_credentials, generate_pkce_pair, generate_state, load_system_prompt,
     parse_oauth_callback_request_target, save_oauth_credentials, ApiClient, ApiRequest,
@@ -678,110 +678,99 @@ struct StatusUsage {
 }
 
 fn format_model_report(model: &str, message_count: usize, turns: u32) -> String {
-    format!(
-        "Model
-  Current          {model}
-  Session          {message_count} messages · {turns} turns
+    let color = io::stdout().is_terminal();
+    let rows: &[(&str, &str)] = &[
+        ("Current", model),
+        ("Messages", &format!("{message_count} messages · {turns} turns")),
+    ];
+    let panel = render_glass_panel("Model", rows, 58, color);
 
-Aliases
-  opus             claude-opus-4-6
-  sonnet           claude-sonnet-4-6
-  haiku            claude-haiku-4-5-20251213
+    let aliases = render_glass_panel(
+        "Aliases",
+        &[
+            ("opus", "claude-opus-4-6"),
+            ("sonnet", "claude-sonnet-4-6"),
+            ("haiku", "claude-haiku-4-5-20251213"),
+        ],
+        58,
+        color,
+    );
 
-Next
-  /model           Show the current model
-  /model <name>    Switch models for this REPL session"
-    )
+    format!("{panel}\n{aliases}\n\n  /model <name>    Switch models for this REPL session")
 }
 
 fn format_model_switch_report(previous: &str, next: &str, message_count: usize) -> String {
-    format!(
-        "Model updated
-  Previous         {previous}
-  Current          {next}
-  Preserved        {message_count} messages
-  Tip              Existing conversation context stayed attached"
-    )
+    let color = io::stdout().is_terminal();
+    let preserved = format!("{message_count} messages");
+    let rows: &[(&str, &str)] = &[
+        ("Previous", previous),
+        ("Current", next),
+        ("Preserved", &preserved),
+        ("Tip", "Existing conversation context stayed attached"),
+    ];
+    render_glass_panel("Model updated", rows, 58, color)
 }
 
 fn format_permissions_report(mode: &str) -> String {
-    let modes = [
-        ("read-only", "Read/search tools only", mode == "read-only"),
-        (
-            "workspace-write",
-            "Edit files inside the workspace",
-            mode == "workspace-write",
-        ),
-        (
-            "danger-full-access",
-            "Unrestricted tool access",
-            mode == "danger-full-access",
-        ),
-    ]
-    .into_iter()
-    .map(|(name, description, is_current)| {
-        let marker = if is_current {
-            "● current"
-        } else {
-            "○ available"
-        };
-        format!("  {name:<18} {marker:<11} {description}")
-    })
-    .collect::<Vec<_>>()
-    .join(
-        "
-",
-    );
-
+    let color = io::stdout().is_terminal();
     let effect = match mode {
         "read-only" => "Only read/search tools can run automatically",
         "workspace-write" => "Editing tools can modify files in the workspace",
         "danger-full-access" => "All tools can run without additional sandbox limits",
         _ => "Unknown permission mode",
     };
-
-    format!(
-        "Permissions
-  Active mode      {mode}
-  Effect           {effect}
-
-Modes
-{modes}
-
-Next
-  /permissions              Show the current mode
-  /permissions <mode>       Switch modes for subsequent tool calls"
-    )
+    let mode_rows: Vec<(String, String)> = [
+        ("read-only", "Read/search tools only"),
+        ("workspace-write", "Edit files inside the workspace"),
+        ("danger-full-access", "Unrestricted tool access"),
+    ]
+    .iter()
+    .map(|(name, desc)| {
+        let marker = if *name == mode {
+            format!("● {desc}")
+        } else {
+            format!("○ {desc}")
+        };
+        (name.to_string(), marker)
+    })
+    .collect();
+    let status_rows: &[(&str, &str)] = &[("Active mode", mode), ("Effect", effect)];
+    let status_panel = render_glass_panel("Permissions", status_rows, 62, color);
+    let mode_rows_ref: Vec<(&str, &str)> = mode_rows
+        .iter()
+        .map(|(k, v)| (k.as_str(), v.as_str()))
+        .collect();
+    let modes_panel = render_glass_panel("Modes", &mode_rows_ref, 62, color);
+    format!("{status_panel}\n{modes_panel}\n\n  /permissions <mode>    Switch modes for subsequent tool calls")
 }
 
 fn format_permissions_switch_report(previous: &str, next: &str) -> String {
-    format!(
-        "Permissions updated
-  Previous mode    {previous}
-  Active mode      {next}
-  Applies to       Subsequent tool calls in this REPL
-  Tip              Run /permissions to review all available modes"
-    )
+    let color = io::stdout().is_terminal();
+    let rows: &[(&str, &str)] = &[
+        ("Previous mode", previous),
+        ("Active mode", next),
+        ("Applies to", "Subsequent tool calls in this REPL"),
+        ("Tip", "Run /permissions to review all available modes"),
+    ];
+    render_glass_panel("Permissions updated", rows, 62, color)
 }
 
 fn format_cost_report(usage: TokenUsage) -> String {
-    format!(
-        "Cost
-  Input tokens     {}
-  Output tokens    {}
-  Cache create     {}
-  Cache read       {}
-  Total tokens     {}
-
-Next
-  /status          See session + workspace context
-  /compact         Trim local history if the session is getting large",
-        usage.input_tokens,
-        usage.output_tokens,
-        usage.cache_creation_input_tokens,
-        usage.cache_read_input_tokens,
-        usage.total_tokens(),
-    )
+    let color = io::stdout().is_terminal();
+    let input = usage.input_tokens.to_string();
+    let output = usage.output_tokens.to_string();
+    let cache_create = usage.cache_creation_input_tokens.to_string();
+    let cache_read = usage.cache_read_input_tokens.to_string();
+    let total = usage.total_tokens().to_string();
+    let rows: &[(&str, &str)] = &[
+        ("Input tokens", &input),
+        ("Output tokens", &output),
+        ("Cache create", &cache_create),
+        ("Cache read", &cache_read),
+        ("Total tokens", &total),
+    ];
+    let panel = render_glass_panel("Cost", rows, 52, color);
+    format!("{panel}\n\n  /status    See session + workspace context\n  /compact   Trim local history if the session is getting large")
 }
 
 fn format_resume_report(session_path: &str, message_count: usize, turns: u32) -> String {
@@ -794,21 +783,24 @@ fn format_resume_report(session_path: &str, message_count: usize, turns: u32) ->
 }
 
 fn format_compact_report(removed: usize, resulting_messages: usize, skipped: bool) -> String {
+    let color = io::stdout().is_terminal();
+    let kept = resulting_messages.to_string();
+    let removed_s = removed.to_string();
     if skipped {
-        format!(
-            "Compact
-  Result           skipped
-  Reason           Session is already below the compaction threshold
-  Messages kept    {resulting_messages}"
-        )
+        let rows: &[(&str, &str)] = &[
+            ("Result", "skipped"),
+            ("Reason", "Session is already below the compaction threshold"),
+            ("Messages kept", &kept),
+        ];
+        render_glass_panel("Compact", rows, 62, color)
     } else {
-        format!(
-            "Compact
-  Result           compacted
-  Messages removed {removed}
-  Messages kept    {resulting_messages}
-  Tip              Use /status to review the trimmed session"
-        )
+        let rows: &[(&str, &str)] = &[
+            ("Result", "compacted"),
+            ("Messages removed", &removed_s),
+            ("Messages kept", &kept),
+            ("Tip", "Use /status to review the trimmed session"),
+        ];
+        render_glass_panel("Compact", rows, 62, color)
     }
 }
 
@@ -1080,10 +1072,6 @@ impl LiveCli {
     fn startup_banner(&self) -> String {
         let color = io::stdout().is_terminal();
         let cwd = env::current_dir().ok();
-        let cwd_display = cwd.as_ref().map_or_else(
-            || "<unknown>".to_string(),
-            |path| path.display().to_string(),
-        );
         let workspace_name = cwd
             .as_ref()
             .and_then(|path| path.file_name())
@@ -1099,44 +1087,33 @@ impl LiveCli {
         let has_wraith_md = cwd
             .as_ref()
             .is_some_and(|path| path.join("WRAITH.md").is_file());
-        let mut lines = vec![
-            format!(
-                "{} {}",
-                if color {
-                    "\x1b[1;38;5;45mWRAITH\x1b[0m"
-                } else {
-                    "Wraith"
-                },
-                if color {
-                    "\x1b[2m· ready\x1b[0m"
-                } else {
-                    "· ready"
-                }
-            ),
-            format!("  Workspace        {workspace_summary}"),
-            format!("  Directory        {cwd_display}"),
-            format!("  Model            {}", self.model),
-            format!("  Permissions      {}", self.permission_mode.as_str()),
-            format!("  Session          {}", self.session.id),
-            format!(
-                "  Quick start      {}",
-                if has_wraith_md {
-                    "/help · /status · ask for a task"
-                } else {
-                    "/init · /help · /status"
-                }
-            ),
-            "  Editor           Tab completes slash commands · /vim toggles modal editing"
-                .to_string(),
-            "  Multiline        Shift+Enter or Ctrl+J inserts a newline".to_string(),
-        ];
+
+        let info_line = format!(
+            "Model: {}   Workspace: {}   v{}",
+            self.model, workspace_summary, VERSION
+        );
+        let mut out = render_wraith_banner("The ghost in your terminal.", &info_line, color);
+
+        let hint = if has_wraith_md {
+            "/help · /status · ask for a task"
+        } else {
+            "/init · /help · /status"
+        };
+
+        let dim_on = if color { "\x1b[2m" } else { "" };
+        let reset = if color { "\x1b[0m" } else { "" };
+
+        out.push('\n');
+        out.push_str(&format!(
+            "  {dim_on}Quick start{reset}      {hint}\n  {dim_on}Editor{reset}           Tab completes slash commands · /vim toggles modal editing\n  {dim_on}Multiline{reset}        Shift+Enter or Ctrl+J inserts a newline",
+        ));
         if !has_wraith_md {
-            lines.push(
-                "  First run        /init scaffolds WRAITH.md, .wraith.json, and local session files"
-                    .to_string(),
-            );
+            out.push('\n');
+            out.push_str(&format!(
+                "  {dim_on}First run{reset}        /init scaffolds WRAITH.md, .wraith.json, and local session files"
+            ));
         }
-        lines.join("\n")
+        out
     }
 
     fn run_turn(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -2049,62 +2026,62 @@ fn format_status_report(
     permission_mode: &str,
     context: &StatusContext,
 ) -> String {
-    [
-        format!(
-            "Session
-  Model            {model}
-  Permissions      {permission_mode}
-  Activity         {} messages · {} turns
-  Tokens           est {} · latest {} · total {}",
-            usage.message_count,
-            usage.turns,
-            usage.estimated_tokens,
-            usage.latest.total_tokens(),
-            usage.cumulative.total_tokens(),
-        ),
-        format!(
-            "Usage
-  Cumulative input {}
-  Cumulative output {}
-  Cache create     {}
-  Cache read       {}",
-            usage.cumulative.input_tokens,
-            usage.cumulative.output_tokens,
-            usage.cumulative.cache_creation_input_tokens,
-            usage.cumulative.cache_read_input_tokens,
-        ),
-        format!(
-            "Workspace
-  Folder           {}
-  Project root     {}
-  Git branch       {}
-  Session file     {}
-  Config files     loaded {}/{}
-  Memory files     {}
+    let color = io::stdout().is_terminal();
 
-Next
-  /help            Browse commands
-  /session list    Inspect saved sessions
-  /diff            Review current workspace changes",
-            context.cwd.display(),
-            context
-                .project_root
-                .as_ref()
-                .map_or_else(|| "unknown".to_string(), |path| path.display().to_string()),
-            context.git_branch.as_deref().unwrap_or("unknown"),
-            context.session_path.as_ref().map_or_else(
-                || "live-repl".to_string(),
-                |path| path.display().to_string()
-            ),
-            context.loaded_config_files,
-            context.discovered_config_files,
-            context.memory_file_count,
-        ),
-    ]
-    .join(
-        "
+    let activity = format!("{} messages · {} turns", usage.message_count, usage.turns);
+    let tokens = format!(
+        "est {} · latest {} · total {}",
+        usage.estimated_tokens,
+        usage.latest.total_tokens(),
+        usage.cumulative.total_tokens()
+    );
+    let session_rows: &[(&str, &str)] = &[
+        ("Model", model),
+        ("Permissions", permission_mode),
+        ("Activity", &activity),
+        ("Tokens", &tokens),
+    ];
+    let session_panel = render_glass_panel("Session", session_rows, 66, color);
 
-",
+    let cum_input = usage.cumulative.input_tokens.to_string();
+    let cum_output = usage.cumulative.output_tokens.to_string();
+    let cache_create = usage.cumulative.cache_creation_input_tokens.to_string();
+    let cache_read = usage.cumulative.cache_read_input_tokens.to_string();
+    let usage_rows: &[(&str, &str)] = &[
+        ("Cumul. input", &cum_input),
+        ("Cumul. output", &cum_output),
+        ("Cache create", &cache_create),
+        ("Cache read", &cache_read),
+    ];
+    let usage_panel = render_glass_panel("Usage", usage_rows, 66, color);
+
+    let folder = context.cwd.display().to_string();
+    let project_root = context
+        .project_root
+        .as_ref()
+        .map_or_else(|| "unknown".to_string(), |path| path.display().to_string());
+    let git_branch = context.git_branch.as_deref().unwrap_or("unknown").to_string();
+    let session_file = context.session_path.as_ref().map_or_else(
+        || "live-repl".to_string(),
+        |path| path.display().to_string(),
+    );
+    let config_files = format!(
+        "loaded {}/{}",
+        context.loaded_config_files, context.discovered_config_files
+    );
+    let memory_files = context.memory_file_count.to_string();
+    let ws_rows: &[(&str, &str)] = &[
+        ("Folder", &folder),
+        ("Project root", &project_root),
+        ("Git branch", &git_branch),
+        ("Session file", &session_file),
+        ("Config files", &config_files),
+        ("Memory files", &memory_files),
+    ];
+    let ws_panel = render_glass_panel("Workspace", ws_rows, 66, color);
+
+    format!(
+        "{session_panel}\n{usage_panel}\n{ws_panel}\n\n  /help            Browse commands\n  /session list    Inspect saved sessions\n  /diff            Review current workspace changes"
     )
 }
 

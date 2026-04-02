@@ -702,6 +702,145 @@ fn strip_ansi(input: &str) -> String {
     output
 }
 
+/// Render a glass info panel with a title and key-value rows.
+///
+/// ```text
+/// ┏━━ Title ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+/// ┃  Key              Value                            ┃
+/// ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+/// ```
+///
+/// When `color` is true, the title is rendered in cyan, borders in dim, and
+/// keys in dim. Values use the default terminal colour.
+pub fn render_glass_panel(title: &str, rows: &[(&str, &str)], width: usize, color: bool) -> String {
+    // Colours as raw ANSI — avoids crossterm queuing overhead for String building.
+    const DIM: &str = "\x1b[2m";
+    const CYAN: &str = "\x1b[38;2;0;229;255m";
+    const RESET: &str = "\x1b[0m";
+
+    let panel_width = width.max(title.len() + 10).max(30);
+    let key_width = rows.iter().map(|(k, _)| k.chars().count()).max().unwrap_or(8);
+
+    // Top border: ┏━━ Title ━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    let after_title = panel_width.saturating_sub(title.chars().count() + 5); // ┏━━ + " " + ┓
+    let top_fill = "━".repeat(after_title);
+    let top = if color {
+        format!("{DIM}┏━━ {RESET}{CYAN}{DIM}{title}{RESET}{DIM} {top_fill}┓{RESET}")
+    } else {
+        format!("┏━━ {title} {top_fill}┓")
+    };
+
+    // Rows: ┃  Key     Value     ┃
+    let inner_width = panel_width.saturating_sub(2); // subtract ┃┃
+    let row_lines: Vec<String> = rows
+        .iter()
+        .map(|(key, val)| {
+            // available chars after ┃  key  (pad to key_width)  space space
+            let val_area = inner_width.saturating_sub(key_width + 4); // "  " before key + "  " between key and val
+            let val_trimmed: String = val.chars().take(val_area).collect();
+            let val_padded = format!("{val_trimmed:<val_area$}");
+            if color {
+                format!("{DIM}┃{RESET}  {DIM}{key:<key_width$}{RESET}  {val_padded}{DIM}┃{RESET}")
+            } else {
+                format!("┃  {key:<key_width$}  {val_padded}┃")
+            }
+        })
+        .collect();
+
+    // Bottom border: ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+    let bottom_fill = "━".repeat(panel_width.saturating_sub(2));
+    let bottom = if color {
+        format!("{DIM}┗{bottom_fill}┛{RESET}")
+    } else {
+        format!("┗{bottom_fill}┛")
+    };
+
+    let mut lines = vec![top];
+    lines.extend(row_lines);
+    lines.push(bottom);
+    lines.join("\n")
+}
+
+/// Render two glass panels side-by-side.
+///
+/// `total_width` is shared equally between the two panels (with 1 space gap).
+#[allow(dead_code)]
+pub fn render_glass_panel_pair(
+    left: (&str, &[(&str, &str)]),
+    right: (&str, &[(&str, &str)]),
+    total_width: usize,
+    color: bool,
+) -> String {
+    let half = total_width / 2;
+    let left_panel = render_glass_panel(left.0, left.1, half.saturating_sub(1), color);
+    let right_panel = render_glass_panel(right.0, right.1, half.saturating_sub(1), color);
+
+    // Zip lines side by side. Pad shorter panel's lines to `half` chars width.
+    let left_lines: Vec<&str> = left_panel.lines().collect();
+    let right_lines: Vec<&str> = right_panel.lines().collect();
+    let max_lines = left_lines.len().max(right_lines.len());
+
+    let blank_left = " ".repeat(half.saturating_sub(1));
+    let blank_right = " ".repeat(half.saturating_sub(1));
+
+    (0..max_lines)
+        .map(|i| {
+            let l = left_lines.get(i).copied().unwrap_or(&blank_left);
+            let r = right_lines.get(i).copied().unwrap_or(&blank_right);
+            format!("{l} {r}")
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Render the WRAITH ASCII-art banner with a cyan→violet gradient.
+///
+/// Returns a `String` ready for `println!`. If `color` is false, returns plain
+/// text without ANSI escape codes.
+pub fn render_wraith_banner(tagline: &str, info_line: &str, color: bool) -> String {
+    const ART: &[&str] = &[
+        " ██╗    ██╗██████╗  █████╗ ██╗████████╗██╗  ██╗",
+        " ██║    ██║██╔══██╗██╔══██╗██║╚══██╔══╝██║  ██║",
+        " ██║ █╗ ██║██████╔╝███████║██║   ██║   ███████║",
+        " ██║███╗██║██╔══██╗██╔══██║██║   ██║   ██╔══██║",
+        " ╚███╔███╔╝██║  ██║██║  ██║██║   ██║   ██║  ██║",
+        "  ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝   ╚═╝   ╚═╝  ╚═╝",
+    ];
+    let total = ART.len() as f32 - 1.0;
+    let mut lines: Vec<String> = ART
+        .iter()
+        .enumerate()
+        .map(|(i, line)| {
+            if color {
+                let t = i as f32 / total;
+                // Interpolate cyan (0,229,255) → violet (187,134,252)
+                let r = (t * 187.0) as u8;
+                let g = (229.0 + t * (134.0_f32 - 229.0)) as u8;
+                let b = 255u8;
+                format!("\x1b[38;2;{r};{g};{b}m{line}\x1b[0m")
+            } else {
+                (*line).to_string()
+            }
+        })
+        .collect();
+
+    // Tagline in dim
+    lines.push(if color {
+        format!("\x1b[2m  {tagline}\x1b[0m")
+    } else {
+        format!("  {tagline}")
+    });
+
+    // Compact info line
+    lines.push(if color {
+        format!("  {info_line}")
+    } else {
+        format!("  {info_line}")
+    });
+
+    lines.join("\n")
+}
+
 #[cfg(test)]
 mod tests {
     use super::{strip_ansi, MarkdownStreamState, Spinner, TerminalRenderer};
