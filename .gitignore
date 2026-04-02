@@ -1,0 +1,14 @@
+/target
+Cargo.lock
+*.swp
+*.swo
+.DS_Store
+
+# WRAITH project configs (local overrides — do not commit)
+.wraith/settings.local.json
+.wraith/sessions/
+
+# Editor
+.idea/
+.vscode/
+*.orig
