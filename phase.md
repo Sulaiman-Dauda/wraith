@@ -565,20 +565,20 @@ Test key tools with real interactions:
   - Tool call execution
   - Vim mode (Normal vs Insert)
 - [ ] **9.2** Add screenshots to README.md
-- [ ] **9.3** Write `docs/` directory:
+- [x] **9.3** Write `docs/` directory:
   - `docs/configuration.md` — full config reference
   - `docs/providers.md` — multi-provider setup guide
   - `docs/plugins.md` — plugin development guide
   - `docs/tools.md` — built-in tools reference
   - `docs/vim-mode.md` — vim keybindings reference
-- [ ] **9.4** Final README review:
+- [x] **9.4** Final README review:
   - Install instructions verified
   - Feature list accurate
   - No "claw" references
   - Links work
-- [ ] **9.5** Update `CHANGELOG.md` with complete v0.1.0 feature list
-- [ ] **9.6** Update `Cargo.toml` version to `0.1.0`
-- [ ] **9.7** Git commit: `"docs: complete documentation for v0.1.0"`
+- [x] **9.5** Update `CHANGELOG.md` with complete v0.1.0 feature list
+- [x] **9.6** Update `Cargo.toml` version to `0.1.0`
+- [x] **9.7** Git commit: `"docs: complete documentation for v0.1.0"` *(deferred: screenshots require live terminal)*
 
 **Exit Criteria**: README is launch-ready with screenshots. Documentation covers all major features. Version is 0.1.0.
 

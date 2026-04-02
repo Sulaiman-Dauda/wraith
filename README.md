@@ -11,7 +11,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-violet.svg)](https://www.rust-lang.org)
-[![Crates.io](https://img.shields.io/crates/v/wraith.svg)](https://crates.io/crates/wraith)
+[![Crates.io](https://img.shields.io/crates/v/wraith-cli.svg)](https://crates.io/crates/wraith-cli)
 
 WRAITH is an **open-source, terminal-native AI coding agent** written in Rust. It lives in your terminal, understands your codebase, and executes multi-step coding tasks autonomously — reading files, writing code, running commands — all through a conversational REPL with a cyberpunk soul.
 
@@ -20,8 +20,10 @@ WRAITH is an **open-source, terminal-native AI coding agent** written in Rust. I
 ## Install
 
 ```sh
-cargo install wraith
+cargo install wraith-cli
 ```
+
+> **Note**: The binary is named `wraith`. You run it as `wraith` after install.
 
 Or build from source:
 
@@ -62,13 +64,31 @@ wraith prompt "refactor src/main.rs to use the builder pattern"
 | **Streaming markdown**  | Syntax-highlighted code blocks, tables, lists rendered live — no buffering                              |
 | **Multi-provider**      | Anthropic native + OpenAI-compatible (Bedrock, Vertex, Ollama, local models)                            |
 | **Plugin system**       | Hook-based lifecycle events: pre/post tool use, session start/stop, notifications                       |
-| **Permission modes**    | 4 modes: default, auto-accept, plan-only, deny-all — with per-tool rules                                |
-| **Session persistence** | Resume previous conversations with `wraith --resume SESSION.json`                                       |
+| **Permission modes**    | 3 modes: `read-only`, `workspace-write`, `danger-full-access` — with per-tool rules                     |
+| **Session persistence** | Sessions are automatically persisted to `.wraith/sessions/`                                             |
 | **Cost tracking**       | Real-time token and cost display with model-specific pricing                                            |
 | **Sub-agent spawning**  | Delegate complex sub-tasks to parallel child agent instances                                            |
 | **HTTP server mode**    | Axum-based API for IDE and tool integration                                                             |
 | **MCP client**          | Connect to any Model Context Protocol server via stdio transport                                        |
 | **Remote runtime**      | SSE-based execution on remote machines                                                                  |
+
+---
+
+## Demo
+
+> A terminal recording showing Wraith in action — coming soon.
+>
+> ![Wraith demo](docs/assets/demo.gif)
+
+---
+
+## Documentation
+
+- [Configuration](docs/configuration.md) — Settings, environment variables, and config files
+- [Providers](docs/providers.md) — Multi-provider AI setup (Anthropic, OpenAI, local models)
+- [Tools](docs/tools.md) — Complete reference for all 19 built-in tools
+- [Plugin System](docs/plugins.md) — Extend WRAITH with custom tools and hooks
+- [Vim Mode](docs/vim-mode.md) — Full vim editing in the conversation prompt
 
 ---
 
@@ -103,7 +123,7 @@ This scaffolds `WRAITH.md`, `.wraith/`, and `.wraith.json` for you.
 | `OPENAI_API_KEY`                 | OpenAI-compatible API key                              |
 | `OPENAI_BASE_URL`                | Base URL for OpenAI-compatible providers               |
 | `WRAITH_CONFIG_HOME`             | Override config directory (default: `~/.wraith/`)      |
-| `WRAITH_PERMISSION_MODE`         | `default`, `acceptEdits`, `plan`, `bypassPermissions`  |
+| `WRAITH_PERMISSION_MODE`         | `read-only`, `workspace-write`, `danger-full-access`   |
 | `WRAITH_SANDBOX_FILESYSTEM_MODE` | `read-only`, `disk-write-dangerous`, `containers-only` |
 | `WRAITH_REMOTE`                  | Set to `true` to enable remote runtime                 |
 | `WRAITH_REMOTE_SESSION_ID`       | Session ID for remote runtime                          |
