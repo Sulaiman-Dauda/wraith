@@ -462,21 +462,21 @@ Systematic file-by-file replacement. Each file gets its own checklist:
 
 **Goal**: Remove dead OAuth infrastructure, ensure API key auth works cleanly.
 
-- [ ] **7.1** In `main.rs`, remove or disable the OAuth device flow code that references `platform.claw.dev`:
+- [x] **7.1** In `main.rs`, remove or disable the OAuth device flow code that references `platform.claw.dev`:
   - Comment out `platform.claw.dev` URLs
   - Comment out the `client_id` UUID
   - Comment out the `user:sessions:claw_code` scope
   - Keep the OAuth flow structure intact for future WRAITH OAuth (if needed)
-- [ ] **7.2** Ensure API key authentication via `ANTHROPIC_API_KEY` env var works without OAuth
-- [ ] **7.3** Ensure OpenAI-compatible auth via `OPENAI_API_KEY` works
-- [ ] **7.4** Update startup flow:
+- [x] **7.2** Ensure API key authentication via `ANTHROPIC_API_KEY` env var works without OAuth
+- [x] **7.3** Ensure OpenAI-compatible auth via `OPENAI_API_KEY` works
+- [x] **7.4** Update startup flow:
   - If no API key found, show helpful error with instructions
   - Don't attempt OAuth flow to dead endpoints
-- [ ] **7.5** In `runtime/src/oauth.rs`:
+- [x] **7.5** In `runtime/src/oauth.rs`:
   - Update credential path to `~/.wraith/credentials.json`
   - Ensure no hardcoded upstream URLs remain
-- [ ] **7.6** Verify: `wraith` starts cleanly with `ANTHROPIC_API_KEY` set, no OAuth errors
-- [ ] **7.7** Git commit: `"fix: disable upstream OAuth, clean API key auth flow"`
+- [x] **7.6** Verify: `wraith` starts cleanly with `ANTHROPIC_API_KEY` set, no OAuth errors
+- [x] **7.7** Git commit: `"fix: disable upstream OAuth, clean API key auth flow"`
 
 **Exit Criteria**: No calls to `platform.claw.dev`. API key auth works. Clear error message when no key is set.
 

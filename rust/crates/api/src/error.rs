@@ -62,11 +62,25 @@ impl ApiError {
 impl Display for ApiError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::MissingCredentials { provider, env_vars } => write!(
-                f,
-                "missing {provider} credentials; export {} before calling the {provider} API",
-                env_vars.join(" or ")
-            ),
+            Self::MissingCredentials { provider: _, env_vars } => {
+                if env_vars.contains(&"ANTHROPIC_API_KEY") {
+                    write!(
+                        f,
+                        "No API key found. Set ANTHROPIC_API_KEY to get started.\nFor Anthropic: https://console.anthropic.com/"
+                    )
+                } else if env_vars.iter().any(|var| var.contains("OPENAI")) {
+                    write!(
+                        f,
+                        "No API key found. Set OPENAI_API_KEY to get started.\nFor OpenAI: https://platform.openai.com/api-keys"
+                    )
+                } else {
+                    write!(
+                        f,
+                        "missing credentials; export {} to get started",
+                        env_vars.join(" or ")
+                    )
+                }
+            },
             Self::ExpiredOAuthToken => {
                 write!(
                     f,
