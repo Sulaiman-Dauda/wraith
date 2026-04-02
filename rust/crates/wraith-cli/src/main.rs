@@ -470,15 +470,15 @@ fn print_bootstrap_plan() {
 
 fn default_oauth_config() -> OAuthConfig {
     OAuthConfig {
-        client_id: String::from("9d1c250a-e61b-44d9-88ed-5944d1962f5e"),
-        authorize_url: String::from("https://platform.wraith.dev/oauth/authorize"),
-        token_url: String::from("https://platform.wraith.dev/v1/oauth/token"),
+        client_id: String::from("TODO_WRAITH_CLIENT_ID"), // TODO: WRAITH client_id
+        authorize_url: String::from("https://oauth.example.com/authorize"), // TODO: Replace with WRAITH OAuth endpoints
+        token_url: String::from("https://oauth.example.com/token"), // TODO: Replace with WRAITH OAuth endpoints
         callback_port: None,
         manual_redirect_url: None,
         scopes: vec![
             String::from("user:profile"),
             String::from("user:inference"),
-            String::from("user:sessions:wraith"),
+            // String::from("user:sessions:wraith"), // TODO: WRAITH scope placeholder
         ],
     }
 }

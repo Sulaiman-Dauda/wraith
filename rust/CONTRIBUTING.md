@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for contributing to Claw Code.
+Thanks for contributing to WRAITH.
 
 ## Development setup
 

@@ -1,8 +1,8 @@
-# Claw Code
+# WRAITH
 
-Claw Code is a local coding-agent CLI implemented in safe Rust. It is **Claude Code inspired** and developed as a **clean-room implementation**: it aims for a strong local agent experience, but it is **not** a direct port or copy of Claude Code.
+WRAITH is a local coding-agent CLI implemented in safe Rust. It is **Claude Code inspired** and developed as a **clean-room implementation**: it aims for a strong local agent experience, but it is **not** a direct port or copy of Claude Code.
 
-The Rust workspace is the current main product surface. The `claw` binary provides interactive sessions, one-shot prompts, workspace-aware tools, local agent workflows, and plugin-capable operation from a single workspace.
+The Rust workspace is the current main product surface. The `wraith` binary provides interactive sessions, one-shot prompts, workspace-aware tools, local agent workflows, and plugin-capable operation from a single workspace.
 
 ## Current status
 
@@ -40,19 +40,19 @@ export XAI_BASE_URL="https://api.x.ai"
 OAuth login is also available:
 
 ```bash
-cargo run --bin claw -- login
+cargo run --bin wraith -- login
 ```
 
 ### Install locally
 
 ```bash
-cargo install --path crates/claw-cli --locked
+cargo install --path crates/wraith-cli --locked
 ```
 
 ### Build from source
 
 ```bash
-cargo build --release -p claw-cli
+cargo build --release -p wraith-cli
 ```
 
 ### Run
@@ -60,17 +60,17 @@ cargo build --release -p claw-cli
 From the workspace:
 
 ```bash
-cargo run --bin claw -- --help
-cargo run --bin claw --
-cargo run --bin claw -- prompt "summarize this workspace"
-cargo run --bin claw -- --model sonnet "review the latest changes"
+cargo run --bin wraith -- --help
+cargo run --bin wraith --
+cargo run --bin wraith -- prompt "summarize this workspace"
+cargo run --bin wraith -- --model sonnet "review the latest changes"
 ```
 
 From the release build:
 
 ```bash
-./target/release/claw
-./target/release/claw prompt "explain crates/runtime"
+./target/release/wraith
+./target/release/wraith prompt "explain crates/runtime"
 ```
 
 ## Supported capabilities
@@ -79,10 +79,10 @@ From the release build:
 - Saved-session inspection and resume flows
 - Built-in workspace tools for shell, file read/write/edit, search, web fetch/search, todos, and notebook updates
 - Slash commands for status, compaction, config inspection, diff, export, session management, and version reporting
-- Local agent and skill discovery with `claw agents` and `claw skills`
+- Local agent and skill discovery with `wraith agents` and `wraith skills`
 - Plugin discovery and management through the CLI and slash-command surfaces
 - OAuth login/logout plus model/provider selection from the command line
-- Workspace-aware instruction/config loading (`CLAW.md`, config files, permissions, plugin settings)
+- Workspace-aware instruction/config loading (`WRAITH.md`, config files, permissions, plugin settings)
 
 ## Current limitations
 
@@ -96,7 +96,7 @@ From the release build:
 
 The Rust workspace is the active product implementation. It currently includes these crates:
 
-- `claw-cli` — user-facing binary
+- `wraith-cli` — user-facing binary
 - `api` — provider clients and streaming
 - `runtime` — sessions, config, permissions, prompts, and runtime loop
 - `tools` — built-in tool implementations

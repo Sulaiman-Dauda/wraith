@@ -38,31 +38,31 @@
 
 ### 1A — Crate Rename
 
-- [ ] **1A.1** Rename directory: `rust/crates/claw-cli/` → `rust/crates/wraith-cli/`
-- [ ] **1A.2** Update `wraith-cli/Cargo.toml`:
+- [x] **1A.1** Rename directory: `rust/crates/claw-cli/` → `rust/crates/wraith-cli/`
+- [x] **1A.2** Update `wraith-cli/Cargo.toml`:
   - `name = "wraith-cli"`
   - `[[bin]] name = "wraith"`
   - Update any `claw-cli` dependency references
-- [ ] **1A.3** Update workspace `Cargo.toml` if it references `claw-cli` explicitly
-- [ ] **1A.4** Update all internal crate dependencies that reference `claw-cli` (grep for `claw-cli` in all `Cargo.toml` files)
-- [ ] **1A.5** Verify: `cargo check` passes
+- [x] **1A.3** Update workspace `Cargo.toml` if it references `claw-cli` explicitly
+- [x] **1A.4** Update all internal crate dependencies that reference `claw-cli` (grep for `claw-cli` in all `Cargo.toml` files)
+- [x] **1A.5** Verify: `cargo check` passes
 
 ### 1B — API Provider Rename
 
-- [ ] **1B.1** Rename file: `api/src/providers/claw_provider.rs` → `api/src/providers/anthropic.rs`
-- [ ] **1B.2** Update `api/src/providers/mod.rs`:
+- [x] **1B.1** Rename file: `api/src/providers/claw_provider.rs` → `api/src/providers/anthropic.rs`
+- [x] **1B.2** Update `api/src/providers/mod.rs`:
   - `mod claw_provider` → `mod anthropic`
   - `ProviderKind::ClawApi` → `ProviderKind::Anthropic`
   - `pub use claw_provider::*` → `pub use anthropic::*`
-- [ ] **1B.3** In `anthropic.rs` (was `claw_provider.rs`):
+- [x] **1B.3** In `anthropic.rs` (was `claw_provider.rs`):
   - `ClawApiClient` → `AnthropicClient`
   - `ClawApiError` → `AnthropicApiError` (if exists)
   - Any doc comments referencing "Claw"
-- [ ] **1B.4** Update `api/src/client.rs`:
+- [x] **1B.4** Update `api/src/client.rs`:
   - `ProviderClient::ClawApi(ClawApiClient)` → `ProviderClient::Anthropic(AnthropicClient)`
   - All match arms referencing `ClawApi`
-- [ ] **1B.5** Update `api/src/lib.rs` if it re-exports claw types
-- [ ] **1B.6** Verify: `cargo check` passes
+- [x] **1B.5** Update `api/src/lib.rs` if it re-exports claw types
+- [x] **1B.6** Verify: `cargo check` passes
 
 ### 1C — String Literals & User-Facing Text
 
@@ -70,124 +70,124 @@ Systematic file-by-file replacement. Each file gets its own checklist:
 
 #### wraith-cli/src/main.rs (~45 occurrences)
 
-- [ ] **1C.1** `"Claw Code"` → `"Wraith"` (all display strings)
-- [ ] **1C.2** `"claw"` → `"wraith"` (binary name references, help text)
-- [ ] **1C.3** `"🦞 Claw Code"` → replace with WRAITH banner (Phase 3 will do ASCII art, for now just `"WRAITH"`)
-- [ ] **1C.4** `CLAW_PERMISSION_MODE` → `WRAITH_PERMISSION_MODE`
-- [ ] **1C.5** OAuth URLs: `platform.claw.dev` → comment out or replace with placeholder `// TODO: WRAITH OAuth endpoint`
-- [ ] **1C.6** OAuth `client_id` → comment out with `// TODO: WRAITH client_id`
-- [ ] **1C.7** OAuth scope `user:sessions:claw_code` → comment out
-- [ ] **1C.8** `claw_default()` function calls → `wraith_default()`
-- [ ] **1C.9** `.claw/sessions/` → `.wraith/sessions/`
-- [ ] **1C.10** Any error messages containing "claw" or "Claw"
+- [x] **1C.1** `"Claw Code"` → `"Wraith"` (all display strings)
+- [x] **1C.2** `"claw"` → `"wraith"` (binary name references, help text)
+- [x] **1C.3** `"🦞 Claw Code"` → replace with WRAITH banner (Phase 3 will do ASCII art, for now just `"WRAITH"`)
+- [x] **1C.4** `CLAW_PERMISSION_MODE` → `WRAITH_PERMISSION_MODE`
+- [x] **1C.5** OAuth URLs: `platform.claw.dev` → comment out or replace with placeholder `// TODO: WRAITH OAuth endpoint`
+- [x] **1C.6** OAuth `client_id` → comment out with `// TODO: WRAITH client_id`
+- [x] **1C.7** OAuth scope `user:sessions:claw_code` → comment out
+- [x] **1C.8** `claw_default()` function calls → `wraith_default()`
+- [x] **1C.9** `.claw/sessions/` → `.wraith/sessions/`
+- [x] **1C.10** Any error messages containing "claw" or "Claw"
 
 #### wraith-cli/src/init.rs (~25 occurrences)
 
-- [ ] **1C.11** `.claw/` → `.wraith/`
-- [ ] **1C.12** `.claw.json` → `.wraith.json`
-- [ ] **1C.13** `CLAW.md` → `WRAITH.md`
-- [ ] **1C.14** Gitignore entries: `.claw/settings.local.json` → `.wraith/settings.local.json`
-- [ ] **1C.15** Gitignore entries: `.claw/sessions/` → `.wraith/sessions/`
-- [ ] **1C.16** Any function names containing `claw`
-- [ ] **1C.17** Any doc comments referencing "Claw"
+- [x] **1C.11** `.claw/` → `.wraith/`
+- [x] **1C.12** `.claw.json` → `.wraith.json`
+- [x] **1C.13** `CLAW.md` → `WRAITH.md`
+- [x] **1C.14** Gitignore entries: `.claw/settings.local.json` → `.wraith/settings.local.json`
+- [x] **1C.15** Gitignore entries: `.claw/sessions/` → `.wraith/sessions/`
+- [x] **1C.16** Any function names containing `claw`
+- [x] **1C.17** Any doc comments referencing "Claw"
 
 #### wraith-cli/src/args.rs
 
-- [ ] **1C.18** `#[command(name = "claw-cli")]` → `#[command(name = "wraith")]`
-- [ ] **1C.19** `about = "Claw Code CLI"` → `about = "The ghost in your terminal."`
+- [x] **1C.18** `#[command(name = "claw-cli")]` → `#[command(name = "wraith")]`
+- [x] **1C.19** `about = "Claw Code CLI"` → `about = "The ghost in your terminal."`
 
 #### wraith-cli/src/app.rs
 
-- [ ] **1C.20** Any "claw" references in session config defaults or command descriptions
+- [x] **1C.20** Any "claw" references in session config defaults or command descriptions
 
 #### wraith-cli/src/input.rs
 
-- [ ] **1C.21** Any "claw" references in prompt text or help strings
+- [x] **1C.21** Any "claw" references in prompt text or help strings
 
 #### wraith-cli/src/render.rs
 
-- [ ] **1C.22** Any "claw" references in comments or doc strings
+- [x] **1C.22** Any "claw" references in comments or doc strings
 
 #### runtime/src/config.rs (~30 occurrences)
 
-- [ ] **1C.23** `CLAW_SETTINGS_SCHEMA_NAME` → `WRAITH_SETTINGS_SCHEMA_NAME`
-- [ ] **1C.24** `.claw.json` → `.wraith.json`
-- [ ] **1C.25** `.claw/settings.json` → `.wraith/settings.json`
-- [ ] **1C.26** `.claw/settings.local.json` → `.wraith/settings.local.json`
-- [ ] **1C.27** `CLAW_CONFIG_HOME` → `WRAITH_CONFIG_HOME`
-- [ ] **1C.28** `~/.claw/` → `~/.wraith/`
-- [ ] **1C.29** All error messages and log strings
+- [x] **1C.23** `CLAW_SETTINGS_SCHEMA_NAME` → `WRAITH_SETTINGS_SCHEMA_NAME`
+- [x] **1C.24** `.claw.json` → `.wraith.json`
+- [x] **1C.25** `.claw/settings.json` → `.wraith/settings.json`
+- [x] **1C.26** `.claw/settings.local.json` → `.wraith/settings.local.json`
+- [x] **1C.27** `CLAW_CONFIG_HOME` → `WRAITH_CONFIG_HOME`
+- [x] **1C.28** `~/.claw/` → `~/.wraith/`
+- [x] **1C.29** All error messages and log strings
 
 #### runtime/src/prompt.rs (~18 occurrences)
 
-- [ ] **1C.30** `CLAW.md` → `WRAITH.md`
-- [ ] **1C.31** `CLAW.local.md` → `WRAITH.local.md`
-- [ ] **1C.32** `.claw/CLAW.md` → `.wraith/WRAITH.md`
-- [ ] **1C.33** `.claw/instructions.md` → `.wraith/instructions.md`
-- [ ] **1C.34** System prompt text mentioning "Claw" or "claw"
+- [x] **1C.30** `CLAW.md` → `WRAITH.md`
+- [x] **1C.31** `CLAW.local.md` → `WRAITH.local.md`
+- [x] **1C.32** `.claw/CLAW.md` → `.wraith/WRAITH.md`
+- [x] **1C.33** `.claw/instructions.md` → `.wraith/instructions.md`
+- [x] **1C.34** System prompt text mentioning "Claw" or "claw"
 
 #### runtime/src/bootstrap.rs
 
-- [ ] **1C.35** `claw_default()` → `wraith_default()`
-- [ ] **1C.36** Any string literals containing "claw"
+- [x] **1C.35** `claw_default()` → `wraith_default()`
+- [x] **1C.36** Any string literals containing "claw"
 
 #### runtime/src/oauth.rs
 
-- [ ] **1C.37** `~/.claw/credentials.json` → `~/.wraith/credentials.json`
-- [ ] **1C.38** `CLAW_CONFIG_HOME` → `WRAITH_CONFIG_HOME`
+- [x] **1C.37** `~/.claw/credentials.json` → `~/.wraith/credentials.json`
+- [x] **1C.38** `CLAW_CONFIG_HOME` → `WRAITH_CONFIG_HOME`
 
 #### runtime/src/sandbox.rs
 
-- [ ] **1C.39** `CLAW_SANDBOX_FILESYSTEM_MODE` → `WRAITH_SANDBOX_FILESYSTEM_MODE`
-- [ ] **1C.40** `CLAW_SANDBOX_ALLOWED_MOUNTS` → `WRAITH_SANDBOX_ALLOWED_MOUNTS`
+- [x] **1C.39** `CLAW_SANDBOX_FILESYSTEM_MODE` → `WRAITH_SANDBOX_FILESYSTEM_MODE`
+- [x] **1C.40** `CLAW_SANDBOX_ALLOWED_MOUNTS` → `WRAITH_SANDBOX_ALLOWED_MOUNTS`
 
 #### runtime/src/remote.rs (~7 occurrences)
 
-- [ ] **1C.41** `CLAW_CODE_REMOTE` → `WRAITH_REMOTE`
-- [ ] **1C.42** `CLAW_CODE_REMOTE_SESSION_ID` → `WRAITH_REMOTE_SESSION_ID`
-- [ ] **1C.43** Any error messages or log text
+- [x] **1C.41** `CLAW_CODE_REMOTE` → `WRAITH_REMOTE`
+- [x] **1C.42** `CLAW_CODE_REMOTE_SESSION_ID` → `WRAITH_REMOTE_SESSION_ID`
+- [x] **1C.43** Any error messages or log text
 
 #### tools/src/lib.rs (~11 occurrences)
 
-- [ ] **1C.44** `CLAW_WEB_SEARCH_BASE_URL` → `WRAITH_WEB_SEARCH_BASE_URL`
-- [ ] **1C.45** `CLAW_TODO_STORE` → `WRAITH_TODO_STORE`
-- [ ] **1C.46** `CLAW_AGENT_STORE` → `WRAITH_AGENT_STORE`
-- [ ] **1C.47** `CLAW_CONFIG_HOME` → `WRAITH_CONFIG_HOME`
-- [ ] **1C.48** `.claw-todos.json` → `.wraith-todos.json`
-- [ ] **1C.49** `.claw-agents` → `.wraith-agents`
+- [x] **1C.44** `CLAW_WEB_SEARCH_BASE_URL` → `WRAITH_WEB_SEARCH_BASE_URL`
+- [x] **1C.45** `CLAW_TODO_STORE` → `WRAITH_TODO_STORE`
+- [x] **1C.46** `CLAW_AGENT_STORE` → `WRAITH_AGENT_STORE`
+- [x] **1C.47** `CLAW_CONFIG_HOME` → `WRAITH_CONFIG_HOME`
+- [x] **1C.48** `.claw-todos.json` → `.wraith-todos.json`
+- [x] **1C.49** `.claw-agents` → `.wraith-agents`
 
 #### commands/src/lib.rs (~12 occurrences)
 
-- [ ] **1C.50** `DefinitionSource::ProjectClaw` → `DefinitionSource::ProjectWraith`
-- [ ] **1C.51** `.claw/agents` → `.wraith/agents`
-- [ ] **1C.52** `.claw/skills` → `.wraith/skills`
-- [ ] **1C.53** `.claw/commands` → `.wraith/commands`
-- [ ] **1C.54** Any display strings or doc comments
+- [x] **1C.50** `DefinitionSource::ProjectClaw` → `DefinitionSource::ProjectWraith`
+- [x] **1C.51** `.claw/agents` → `.wraith/agents`
+- [x] **1C.52** `.claw/skills` → `.wraith/skills`
+- [x] **1C.53** `.claw/commands` → `.wraith/commands`
+- [x] **1C.54** Any display strings or doc comments
 
 #### plugins/src/lib.rs (~8 occurrences)
 
-- [ ] **1C.55** `.claw-plugin/plugin.json` → `.wraith-plugin/plugin.json`
-- [ ] **1C.56** `CLAW_PLUGIN_ID` → `WRAITH_PLUGIN_ID`
-- [ ] **1C.57** `CLAW_PLUGIN_NAME` → `WRAITH_PLUGIN_NAME`
-- [ ] **1C.58** `CLAW_PLUGIN_ROOT` → `WRAITH_PLUGIN_ROOT`
-- [ ] **1C.59** `CLAW_TOOL_NAME` → `WRAITH_TOOL_NAME`
-- [ ] **1C.60** `CLAW_TOOL_INPUT` → `WRAITH_TOOL_INPUT`
+- [x] **1C.55** `.claw-plugin/plugin.json` → `.wraith-plugin/plugin.json`
+- [x] **1C.56** `CLAW_PLUGIN_ID` → `WRAITH_PLUGIN_ID`
+- [x] **1C.57** `CLAW_PLUGIN_NAME` → `WRAITH_PLUGIN_NAME`
+- [x] **1C.58** `CLAW_PLUGIN_ROOT` → `WRAITH_PLUGIN_ROOT`
+- [x] **1C.59** `CLAW_TOOL_NAME` → `WRAITH_TOOL_NAME`
+- [x] **1C.60** `CLAW_TOOL_INPUT` → `WRAITH_TOOL_INPUT`
 
 #### api/src/client.rs
 
-- [ ] **1C.61** `"Hello from Claw"` or similar test strings → `"Hello from Wraith"`
+- [x] **1C.61** `"Hello from Claw"` or similar test strings → `"Hello from Wraith"`
 
 #### runtime/src/lib.rs
 
-- [ ] **1C.62** Any re-exports or doc strings with "claw"
+- [x] **1C.62** Any re-exports or doc strings with "claw"
 
 ### 1D — Final Verification
 
-- [ ] **1D.1** Run: `grep -ri "claw" --include="*.rs" --include="*.toml" rust/` — expect 0 results
-- [ ] **1D.2** Run: `cargo check` — must pass clean
-- [ ] **1D.3** Run: `cargo build --release` — must produce `wraith` binary in `target/release/`
-- [ ] **1D.4** Run: `./target/release/wraith --help` — verify branding says "Wraith"
-- [ ] **1D.5** Git commit: `"feat: complete claw → wraith rebrand"`
+- [x] **1D.1** Run: `grep -ri "claw" --include="*.rs" --include="*.toml" rust/` — expect 0 results
+- [x] **1D.2** Run: `cargo check` — must pass clean
+- [x] **1D.3** Run: `cargo build --release` — must produce `wraith` binary in `target/release/`
+- [x] **1D.4** Run: `./target/release/wraith --help` — verify branding says "Wraith"
+- [x] **1D.5** Git commit: `"feat: complete claw → wraith rebrand"`
 
 **Exit Criteria**: Zero "claw" references remain. Binary compiles as `wraith`. All types renamed. All paths updated.
 
@@ -197,7 +197,7 @@ Systematic file-by-file replacement. Each file gets its own checklist:
 
 **Goal**: Create all new product identity files. The repo should look like a real open-source project.
 
-- [ ] **2.1** Create `LICENSE` (MIT) with:
+- [x] **2.1** Create `LICENSE` (MIT) with:
 
   ```
   MIT License
@@ -208,13 +208,13 @@ Systematic file-by-file replacement. Each file gets its own checklist:
   [standard MIT text]
   ```
 
-- [ ] **2.2** Create `NOTICE` or `THIRD-PARTY-LICENSES`:
+- [x] **2.2** Create `NOTICE` or `THIRD-PARTY-LICENSES`:
   ```
   This project was originally derived from:
     claw-code — https://github.com/instructkr/claw-code
     License: MIT
   ```
-- [ ] **2.3** Create `README.md` — full project README:
+- [x] **2.3** Create `README.md` — full project README:
   - WRAITH ASCII banner
   - One-line description
   - Install: `cargo install wraith`
@@ -226,13 +226,13 @@ Systematic file-by-file replacement. Each file gets its own checklist:
   - Plugin guide
   - Contributing link
   - License section
-- [ ] **2.4** Create `CONTRIBUTING.md`:
+- [x] **2.4** Create `CONTRIBUTING.md`:
   - Development setup
   - Code style (rustfmt, clippy)
   - PR process
   - Issue templates
   - Architecture overview
-- [ ] **2.5** Create `CHANGELOG.md`:
+- [x] **2.5** Create `CHANGELOG.md`:
 
   ```
   # Changelog
@@ -244,7 +244,7 @@ Systematic file-by-file replacement. Each file gets its own checklist:
   - [all features from product-plan.md]
   ```
 
-- [ ] **2.6** Create `WRAITH.md` (default project instruction template):
+- [x] **2.6** Create `WRAITH.md` (default project instruction template):
 
   ```markdown
   # WRAITH Project Instructions
@@ -265,8 +265,8 @@ Systematic file-by-file replacement. Each file gets its own checklist:
   [Anything WRAITH should know when working in this codebase]
   ```
 
-- [ ] **2.7** Update `.gitignore` in repo root
-- [ ] **2.8** Git commit: `"docs: add identity files (README, LICENSE, CONTRIBUTING, CHANGELOG)"`
+- [x] **2.7** Update `.gitignore` in repo root
+- [x] **2.8** Git commit: `"docs: add identity files (README, LICENSE, CONTRIBUTING, CHANGELOG)"`
 
 **Exit Criteria**: Repo has all standard open-source project files. Landing page (README) is polished and compelling.
 
@@ -278,8 +278,8 @@ Systematic file-by-file replacement. Each file gets its own checklist:
 
 ### 3A — Color Theme
 
-- [ ] **3A.1** Open `wraith-cli/src/render.rs`
-- [ ] **3A.2** Replace the `ColorTheme::default()` implementation with cyberpunk palette:
+- [x] **3A.1** Open `wraith-cli/src/render.rs`
+- [x] **3A.2** Replace the `ColorTheme::default()` implementation with cyberpunk palette:
   ```rust
   impl Default for ColorTheme {
       fn default() -> Self {
@@ -299,14 +299,14 @@ Systematic file-by-file replacement. Each file gets its own checklist:
       }
   }
   ```
-- [ ] **3A.3** Verify: `cargo build` passes
-- [ ] **3A.4** Visual test: run `wraith` and confirm colors render correctly
-- [ ] **3A.5** Git commit: `"style: apply Deep Space / Neon Core color palette"`
+- [x] **3A.3** Verify: `cargo build` passes
+- [x] **3A.4** Visual test: run `wraith` and confirm colors render correctly
+- [x] **3A.5** Git commit: `"style: apply Deep Space / Neon Core color palette"`
 
 ### 3B — Spinner
 
-- [ ] **3B.1** In `render.rs`, locate `Spinner` struct and its frame animation
-- [ ] **3B.2** Replace braille dots with sliding progress bar:
+- [x] **3B.1** In `render.rs`, locate `Spinner` struct and its frame animation
+- [x] **3B.2** Replace braille dots with sliding progress bar:
   ```rust
   const SPINNER_FRAMES: &[&str] = &[
       "▰▱▱▱▱▱▱", "▰▰▱▱▱▱▱", "▰▰▰▱▱▱▱", "▰▰▰▰▱▱▱",
@@ -314,17 +314,17 @@ Systematic file-by-file replacement. Each file gets its own checklist:
       "▱▱▱▱▱▰▰", "▱▱▱▱▱▱▰",
   ];
   ```
-- [ ] **3B.3** Set spinner color to Cyan (`Rgb(0, 229, 255)`)
-- [ ] **3B.4** Verify: spinner animates smoothly during API calls
-- [ ] **3B.5** Git commit: `"style: replace braille spinner with progress bar animation"`
+- [x] **3B.3** Set spinner color to Cyan (`Rgb(0, 229, 255)`)
+- [x] **3B.4** Verify: spinner animates smoothly during API calls
+- [x] **3B.5** Git commit: `"style: replace braille spinner with progress bar animation"`
 
 ### 3C — Prompt Character
 
-- [ ] **3C.1** In `wraith-cli/src/input.rs`, locate prompt string
-- [ ] **3C.2** Change prompt from `"> "` to `"› "` with Cyan color
-- [ ] **3C.3** For vim Normal mode, change prompt color to Amber (`Rgb(255, 202, 40)`)
-- [ ] **3C.4** Verify: prompt renders correctly in both Insert and Normal modes
-- [ ] **3C.5** Git commit: `"style: cyberpunk prompt character with vim mode color"`
+- [x] **3C.1** In `wraith-cli/src/input.rs`, locate prompt string
+- [x] **3C.2** Change prompt from `"> "` to `"› "` with Cyan color
+- [x] **3C.3** For vim Normal mode, change prompt color to Amber (`Rgb(255, 202, 40)`)
+- [x] **3C.4** Verify: prompt renders correctly in both Insert and Normal modes
+- [x] **3C.5** Git commit: `"style: cyberpunk prompt character with vim mode color"`
 
 **Exit Criteria**: WRAITH looks cyberpunk. Colors are neon on dark. Spinner is a progress bar. Prompt is `›` with mode-aware colors.
 
@@ -336,8 +336,8 @@ Systematic file-by-file replacement. Each file gets its own checklist:
 
 ### 4A — ASCII Banner
 
-- [ ] **4A.1** In `wraith-cli/src/main.rs`, locate `startup_banner()` or equivalent function
-- [ ] **4A.2** Replace with WRAITH block-letter ASCII art:
+- [x] **4A.1** In `wraith-cli/src/main.rs`, locate `startup_banner()` or equivalent function
+- [x] **4A.2** Replace with WRAITH block-letter ASCII art:
   ```
    ██╗    ██╗██████╗  █████╗ ██╗████████╗██╗  ██╗
    ██║    ██║██╔══██╗██╔══██╗██║╚══██╔══╝██║  ██║
@@ -346,15 +346,15 @@ Systematic file-by-file replacement. Each file gets its own checklist:
    ╚███╔███╔╝██║  ██║██║  ██║██║   ██║   ██║  ██║
     ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝   ╚═╝   ╚═╝  ╚═╝
   ```
-- [ ] **4A.3** Render banner in cyan-to-violet gradient (top lines cyan, bottom lines violet)
-- [ ] **4A.4** Add tagline below: `"  The ghost in your terminal."` in dim
-- [ ] **4A.5** Add compact info line: `"  Model: {model}   Workspace: {cwd}   v{version}"` in body text
-- [ ] **4A.6** Verify: banner displays on startup, fits in 80-column terminal
-- [ ] **4A.7** Git commit: `"feat: WRAITH ASCII art startup banner"`
+- [x] **4A.3** Render banner in cyan-to-violet gradient (top lines cyan, bottom lines violet)
+- [x] **4A.4** Add tagline below: `"  The ghost in your terminal."` in dim
+- [x] **4A.5** Add compact info line: `"  Model: {model}   Workspace: {cwd}   v{version}"` in body text
+- [x] **4A.6** Verify: banner displays on startup, fits in 80-column terminal
+- [x] **4A.7** Git commit: `"feat: WRAITH ASCII art startup banner"`
 
 ### 4B — Glass Info Panels
 
-- [ ] **4B.1** Create a `render_glass_panel()` helper function in `render.rs`:
+- [x] **4B.1** Create a `render_glass_panel()` helper function in `render.rs`:
 
   ```rust
   fn render_glass_panel(title: &str, rows: &[(&str, &str)], width: usize) -> String
@@ -371,13 +371,13 @@ Systematic file-by-file replacement. Each file gets its own checklist:
 
   - Title in cyan, border in dim, keys in dim, values in body text
 
-- [ ] **4B.2** Create `render_glass_panel_pair()` for side-by-side 2-column panels
-- [ ] **4B.3** Verify: panels render correctly at various terminal widths
-- [ ] **4B.4** Git commit: `"feat: glass info panel rendering primitives"`
+- [x] **4B.2** Create `render_glass_panel_pair()` for side-by-side 2-column panels
+- [x] **4B.3** Verify: panels render correctly at various terminal widths
+- [x] **4B.4** Git commit: `"feat: glass info panel rendering primitives"`
 
 ### 4C — Refactor Status/Cost/Model Reports
 
-- [ ] **4C.1** Refactor `format_status_report()` to use glass panels:
+- [x] **4C.1** Refactor `format_status_report()` to use glass panels:
   ```
   ┏━━ Status ━━━━━━━━━━━━━━━━━━━━┓
   ┃  Model     claude-opus-4-6      ┃
@@ -386,15 +386,15 @@ Systematic file-by-file replacement. Each file gets its own checklist:
   ┃  Cost      $0.23                 ┃
   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
   ```
-- [ ] **4C.2** Refactor `format_cost_report()` to use glass panel
-- [ ] **4C.3** Refactor `format_model_report()` to use glass panel
-- [ ] **4C.4** Refactor `format_compact_report()` to use compact HUD line:
+- [x] **4C.2** Refactor `format_cost_report()` to use glass panel
+- [x] **4C.3** Refactor `format_model_report()` to use glass panel
+- [x] **4C.4** Refactor `format_compact_report()` to use compact HUD line:
   ```
   ▸ opus-4-6 │ ~/project │ 42.1K tokens │ $0.23 │ session:a7f3c2
   ```
-- [ ] **4C.5** Refactor `format_permissions_report()` to use glass panel
-- [ ] **4C.6** Verify: all `/status`, `/cost`, `/model` slash commands render with panels
-- [ ] **4C.7** Git commit: `"feat: glass panel rendering for status/cost/model reports"`
+- [x] **4C.5** Refactor `format_permissions_report()` to use glass panel
+- [x] **4C.6** Verify: all `/status`, `/cost`, `/model` slash commands render with panels
+- [x] **4C.7** Git commit: `"feat: glass panel rendering for status/cost/model reports"`
 
 **Exit Criteria**: Startup shows WRAITH ASCII art with gradient. All structured data uses glass panels. Compact HUD available for inline status.
 
