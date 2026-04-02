@@ -220,7 +220,7 @@ fn parse_args(args: &[String]) -> Result<CliAction, String> {
                 index += 1;
             }
             "-p" => {
-                // Claw Code compat: -p "prompt" = one-shot prompt
+                // wraith compat: -p "prompt" = one-shot prompt
                 let prompt = args[index + 1..].join(" ");
                 if prompt.trim().is_empty() {
                     return Err("-p requires a prompt string".to_string());
@@ -234,7 +234,7 @@ fn parse_args(args: &[String]) -> Result<CliAction, String> {
                 });
             }
             "--print" => {
-                // Claw Code compat: --print makes output non-interactive
+                // wraith compat: --print makes output non-interactive
                 output_format = CliOutputFormat::Text;
                 index += 1;
             }
@@ -2222,6 +2222,10 @@ fn normalize_permission_mode(mode: &str) -> Option<&'static str> {
 }
 
 fn render_diff_report() -> Result<String, Box<dyn std::error::Error>> {
+    render_diff_report_colored(true)
+}
+
+fn render_diff_report_colored(color: bool) -> Result<String, Box<dyn std::error::Error>> {
     let output = std::process::Command::new("git")
         .args(["diff", "--", ":(exclude).omx"])
         .current_dir(env::current_dir()?)
@@ -2237,7 +2241,26 @@ fn render_diff_report() -> Result<String, Box<dyn std::error::Error>> {
                 .to_string(),
         );
     }
-    Ok(format!("Diff\n\n{}", diff.trim_end()))
+    if !color {
+        return Ok(format!("Diff\n\n{}", diff.trim_end()));
+    }
+    let colorized: Vec<String> = diff
+        .lines()
+        .map(|line| {
+            if line.starts_with("diff --git") || line.starts_with("+++") || line.starts_with("---") {
+                format!("\x1b[1;38;2;0;229;255m{}\x1b[0m", line)
+            } else if line.starts_with("@@") {
+                format!("\x1b[1;38;2;0;229;255m{}\x1b[0m", line)
+            } else if line.starts_with('+') {
+                format!("\x1b[38;2;0;230;118m{}\x1b[0m", line)
+            } else if line.starts_with('-') {
+                format!("\x1b[38;2;255;82;82m{}\x1b[0m", line)
+            } else {
+                format!("\x1b[2m{}\x1b[0m", line)
+            }
+        })
+        .collect();
+    Ok(format!("Diff\n\n{}", colorized.join("\n")))
 }
 
 fn render_teleport_report(target: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -3361,24 +3384,26 @@ fn format_tool_call_start(name: &str, input: &str) -> String {
         _ => summarize_tool_payload(input),
     };
 
+    // Use tool_use_border color (Rgb(100, 110, 130)) for dim border
+    // and cyan bold for tool name (Rgb(0, 229, 255))
     let border = "─".repeat(name.len() + 8);
     format!(
-        "\x1b[38;5;245m╭─ \x1b[1;36m{name}\x1b[0;38;5;245m ─╮\x1b[0m\n\x1b[38;5;245m│\x1b[0m {detail}\n\x1b[38;5;245m╰{border}╯\x1b[0m"
+        "\x1b[38;2;100;110;130m╭─ \x1b[1;38;2;0;229;255m{name}\x1b[0;38;2;100;110;130m ─╮\x1b[0m\n\x1b[38;2;100;110;130m│\x1b[0m {detail}\n\x1b[38;2;100;110;130m╰{border}╯\x1b[0m"
     )
 }
 
 fn format_tool_result(name: &str, output: &str, is_error: bool) -> String {
     let icon = if is_error {
-        "\x1b[1;31m✗\x1b[0m"
+        "\x1b[38;2;255;82;82m✗\x1b[0m"  // RGB red for error
     } else {
-        "\x1b[1;32m✓\x1b[0m"
+        "\x1b[38;2;0;230;118m✓\x1b[0m"  // RGB green for success
     };
     if is_error {
         let summary = truncate_for_summary(output.trim(), 160);
         return if summary.is_empty() {
-            format!("{icon} \x1b[38;5;245m{name}\x1b[0m")
+            format!("{icon} \x1b[38;2;100;110;130m{name}\x1b[0m")
         } else {
-            format!("{icon} \x1b[38;5;245m{name}\x1b[0m\n\x1b[38;5;203m{summary}\x1b[0m")
+            format!("{icon} \x1b[38;2;100;110;130m{name}\x1b[0m\n\x1b[38;2;255;82;82m{summary}\x1b[0m")
         };
     }
 
@@ -3429,7 +3454,7 @@ fn format_patch_preview(old_value: &str, new_value: &str) -> Option<String> {
         return None;
     }
     Some(format!(
-        "\x1b[38;5;203m- {}\x1b[0m\n\x1b[38;5;70m+ {}\x1b[0m",
+        "\x1b[38;2;255;82;82m- {}\x1b[0m\n\x1b[38;2;0;230;118m+ {}\x1b[0m",
         truncate_for_summary(first_visible_line(old_value), 72),
         truncate_for_summary(first_visible_line(new_value), 72)
     ))
@@ -3549,9 +3574,9 @@ fn format_structured_patch_preview(parsed: &serde_json::Value) -> Option<String>
         let lines = hunk.get("lines")?.as_array()?;
         for line in lines.iter().filter_map(|value| value.as_str()).take(6) {
             match line.chars().next() {
-                Some('+') => preview.push(format!("\x1b[38;5;70m{line}\x1b[0m")),
-                Some('-') => preview.push(format!("\x1b[38;5;203m{line}\x1b[0m")),
-                _ => preview.push(line.to_string()),
+                Some('+') => preview.push(format!("\x1b[38;2;0;230;118m{line}\x1b[0m")), // Green
+                Some('-') => preview.push(format!("\x1b[38;2;255;82;82m{line}\x1b[0m")), // Red
+                _ => preview.push(format!("\x1b[38;2;100;110;130m{line}\x1b[0m")),       // Dim for context lines
             }
         }
     }

@@ -24,6 +24,7 @@ pub struct ColorTheme {
     spinner_active: Color,
     spinner_done: Color,
     spinner_failed: Color,
+    tool_use_border: Color,
 }
 
 impl Default for ColorTheme {
@@ -40,6 +41,7 @@ impl Default for ColorTheme {
             spinner_active: Color::Rgb { r: 0, g: 229, b: 255 },
             spinner_done: Color::Rgb { r: 0, g: 229, b: 255 },
             spinner_failed: Color::Rgb { r: 255, g: 85, b: 85 },
+            tool_use_border: Color::Rgb { r: 100, g: 110, b: 130 },
         }
     }
 }
@@ -466,16 +468,18 @@ impl TerminalRenderer {
     }
 
     fn start_code_block(&self, code_language: &str, output: &mut String) {
-        let label = if code_language.is_empty() {
-            "code".to_string()
+        let language_label = if code_language.is_empty() {
+            "code"
         } else {
-            code_language.to_string()
+            code_language
         };
         let _ = writeln!(
             output,
-            "{}",
-            format!("╭─ {label}")
-                .bold()
+            "{}{}",
+            format!("╭─────────────────────────────────────────────────────────")
+                .with(self.color_theme.code_block_border),
+            format!(" {language_label} ")
+                .dim()
                 .with(self.color_theme.code_block_border)
         );
     }
@@ -485,7 +489,8 @@ impl TerminalRenderer {
         let _ = write!(
             output,
             "{}",
-            "╰─".bold().with(self.color_theme.code_block_border)
+            "╰─────────────────────────────────────────────────────────"
+                .with(self.color_theme.code_block_border)
         );
         output.push_str("\n\n");
     }
@@ -642,8 +647,9 @@ fn apply_code_block_background(line: &str) -> String {
     } else {
         "\n"
     };
-    let with_background = trimmed.replace("\u{1b}[0m", "\u{1b}[0;48;5;236m");
-    format!("\u{1b}[48;5;236m{with_background}\u{1b}[0m{trailing_newline}")
+    // Dark slate background: Rgb(18, 24, 33)
+    let with_background = trimmed.replace("\u{1b}[0m", "\u{1b}[0;48;2;18;24;33m");
+    format!("\u{1b}[48;2;18;24;33m{with_background}\u{1b}[0m{trailing_newline}")
 }
 
 fn find_stream_safe_boundary(markdown: &str) -> Option<usize> {
@@ -875,10 +881,10 @@ mod tests {
             terminal_renderer.markdown_to_ansi("```rust\nfn hi() { println!(\"hi\"); }\n```");
         let plain_text = strip_ansi(&markdown_output);
 
-        assert!(plain_text.contains("╭─ rust"));
+        assert!(plain_text.contains("╭─") && plain_text.contains("rust"));
         assert!(plain_text.contains("fn hi"));
         assert!(markdown_output.contains('\u{1b}'));
-        assert!(markdown_output.contains("[48;5;236m"));
+        assert!(markdown_output.contains("[48;2;18;24;33m"));
     }
 
     #[test]
