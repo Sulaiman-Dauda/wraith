@@ -488,10 +488,10 @@ Systematic file-by-file replacement. Each file gets its own checklist:
 
 ### 8A — Build Verification
 
-- [ ] **8A.1** `cargo build --release` — clean build, no warnings
-- [ ] **8A.2** `cargo clippy -- -D warnings` — no clippy warnings
-- [ ] **8A.3** Binary size check: `ls -la target/release/wraith`
-- [ ] **8A.4** Startup time check: `time ./target/release/wraith --help`
+- [x] **8A.1** `cargo build --release` — clean build, no warnings
+- [x] **8A.2** `cargo clippy -- -D warnings` — no clippy warnings
+- [x] **8A.3** Binary size check: `ls -la target/release/wraith`
+- [x] **8A.4** Startup time check: `time ./target/release/wraith --help`
 
 ### 8B — REPL Smoke Test
 
@@ -544,11 +544,11 @@ Test key tools with real interactions:
 
 ### 8G — Grep Audit
 
-- [ ] **8G.1** `grep -ri "claw" --include="*.rs" --include="*.toml"` → must return 0 results
-- [ ] **8G.2** `grep -ri "claude code" --include="*.rs"` → must return 0 results (allow "claude" as model name)
-- [ ] **8G.3** `grep -ri "instructkr" --include="*.rs" --include="*.toml"` → must return 0 results
+- [x] **8G.1** `grep -ri "claw" --include="*.rs" --include="*.toml"` → must return 0 results
+- [x] **8G.2** `grep -ri "claude code" --include="*.rs"` → must return 0 results (allow "claude" as model name)
+- [x] **8G.3** `grep -ri "instructkr" --include="*.rs" --include="*.toml"` → must return 0 results
 
-- [ ] **8G.4** Git commit: `"test: full functional smoke test passed"`
+- [x] **8G.4** Git commit: `"test: full functional smoke test passed"`
 
 **Exit Criteria**: All features work. Zero naming regressions. Binary is functional end-to-end.
 

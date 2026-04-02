@@ -2968,7 +2968,7 @@ fn build_runtime(
         CliToolExecutor::new(allowed_tools.clone(), emit_output, tool_registry.clone()),
         permission_policy(permission_mode, &tool_registry),
         system_prompt,
-        feature_config,
+        &feature_config,
     ))
 }
 

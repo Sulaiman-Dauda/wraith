@@ -112,13 +112,14 @@ where
         permission_policy: PermissionPolicy,
         system_prompt: Vec<String>,
     ) -> Self {
+        let default_config = RuntimeFeatureConfig::default();
         Self::new_with_features(
             session,
             api_client,
             tool_executor,
             permission_policy,
             system_prompt,
-            RuntimeFeatureConfig::default(),
+            &default_config,
         )
     }
 
@@ -129,7 +130,7 @@ where
         tool_executor: T,
         permission_policy: PermissionPolicy,
         system_prompt: Vec<String>,
-        feature_config: RuntimeFeatureConfig,
+        feature_config: &RuntimeFeatureConfig,
     ) -> Self {
         let usage_tracker = UsageTracker::from_session(&session);
         Self {
@@ -140,7 +141,7 @@ where
             system_prompt,
             max_iterations: usize::MAX,
             usage_tracker,
-            hook_runner: HookRunner::from_feature_config(&feature_config),
+            hook_runner: HookRunner::from_feature_config(feature_config),
         }
     }
 
@@ -601,6 +602,11 @@ mod tests {
             }
         }
 
+        let feature_config = RuntimeFeatureConfig::default().with_hooks(RuntimeHookConfig::new(
+                vec![shell_snippet("printf 'blocked by hook'; exit 2")],
+                Vec::new(),
+            ));
+
         let mut runtime = ConversationRuntime::new_with_features(
             Session::new(),
             SingleCallApiClient,
@@ -609,10 +615,7 @@ mod tests {
             }),
             PermissionPolicy::new(PermissionMode::DangerFullAccess),
             vec!["system".to_string()],
-            RuntimeFeatureConfig::default().with_hooks(RuntimeHookConfig::new(
-                vec![shell_snippet("printf 'blocked by hook'; exit 2")],
-                Vec::new(),
-            )),
+            &feature_config,
         );
 
         let summary = runtime
@@ -669,16 +672,18 @@ mod tests {
             }
         }
 
+        let feature_config = RuntimeFeatureConfig::default().with_hooks(RuntimeHookConfig::new(
+                vec![shell_snippet("printf 'pre hook ran'")],
+                vec![shell_snippet("printf 'post hook ran'")],
+            ));
+
         let mut runtime = ConversationRuntime::new_with_features(
             Session::new(),
             TwoCallApiClient { calls: 0 },
             StaticToolExecutor::new().register("add", |_input| Ok("4".to_string())),
             PermissionPolicy::new(PermissionMode::DangerFullAccess),
             vec!["system".to_string()],
-            RuntimeFeatureConfig::default().with_hooks(RuntimeHookConfig::new(
-                vec![shell_snippet("printf 'pre hook ran'")],
-                vec![shell_snippet("printf 'post hook ran'")],
-            )),
+            &feature_config,
         );
 
         let summary = runtime

@@ -1805,6 +1805,7 @@ struct ProviderRuntimeClient {
 }
 
 impl ProviderRuntimeClient {
+    #[allow(clippy::needless_pass_by_value, clippy::implicit_clone)]
     fn new(model: String, allowed_tools: BTreeSet<String>) -> Result<Self, String> {
         let model = resolve_model_alias(&model).to_string();
         let client = ProviderClient::from_model(&model).map_err(|error| error.to_string())?;
