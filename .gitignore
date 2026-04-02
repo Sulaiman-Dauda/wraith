@@ -1,14 +1,34 @@
-/target
+# Build artifacts
+/rust/target/
+target/
 Cargo.lock
+
+# Swap / temp
 *.swp
 *.swo
+*.orig
 .DS_Store
 
-# WRAITH project configs (local overrides — do not commit)
-.wraith/settings.local.json
-.wraith/sessions/
+# ── WRAITH runtime data (never commit) ──────────────────────────────────────
+# Sessions, todos, local config — anywhere in the tree
+**/.wraith/sessions/
+**/.wraith-todos.json
+**/.wraith/settings.local.json
+# Project-root runtime files
+.wraith.json
+rust/.wraith.json
+rust/WRAITH.md
+rust/.wraith/
+
+# ── Internal development / planning documents ────────────────────────────────
+initial-project-conversation.md
+phase.md
+product-plan.md
+
+# ── VS Code Copilot agent workflow files (internal tooling) ──────────────────
+.github/agents/
+.github/copilot-instructions.md
 
 # Editor
 .idea/
 .vscode/
-*.orig
