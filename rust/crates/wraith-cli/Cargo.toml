@@ -14,17 +14,17 @@ name = "wraith"
 path = "src/main.rs"
 
 [dependencies]
-api = { path = "../api" }
-commands = { path = "../commands" }
+api = { path = "../api", version = "0.1.0", package = "wraith-api" }
+commands = { path = "../commands", version = "0.1.0", package = "wraith-commands" }
 crossterm = "0.28"
 pulldown-cmark = "0.13"
 rustyline = "15"
-runtime = { path = "../runtime" }
-plugins = { path = "../plugins" }
+runtime = { path = "../runtime", version = "0.1.0", package = "wraith-runtime" }
+plugins = { path = "../plugins", version = "0.1.0", package = "wraith-plugins" }
 serde_json.workspace = true
 syntect = "5"
 tokio = { version = "1", features = ["rt-multi-thread", "time"] }
-tools = { path = "../tools" }
+tools = { path = "../tools", version = "0.1.0", package = "wraith-tools" }
 
 [lints]
 workspace = true

@@ -7,7 +7,7 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/wraith-code/wraith"
-publish = false
+publish = true
 
 [workspace.dependencies]
 lsp-types = "0.97"
