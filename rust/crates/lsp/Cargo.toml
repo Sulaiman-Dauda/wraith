@@ -4,6 +4,8 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
+description = "LSP client integration for the WRAITH AI coding agent"
+homepage = "https://github.com/Sulaiman-Dauda/wraith"
 
 [dependencies]
 lsp-types.workspace = true

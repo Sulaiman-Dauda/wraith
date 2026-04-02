@@ -4,6 +4,8 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
+description = "HTTP server mode for the WRAITH AI coding agent"
+homepage = "https://github.com/Sulaiman-Dauda/wraith"
 
 [dependencies]
 async-stream = "0.3"
