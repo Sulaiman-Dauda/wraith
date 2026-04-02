@@ -23,6 +23,8 @@ pub enum ProviderClient {
     Anthropic(AnthropicClient),
     Xai(OpenAiCompatClient),
     OpenAi(OpenAiCompatClient),
+    Gemini(OpenAiCompatClient),
+    OpenRouter(OpenAiCompatClient),
 }
 
 impl ProviderClient {
@@ -46,6 +48,12 @@ impl ProviderClient {
             ProviderKind::OpenAi => Ok(Self::OpenAi(OpenAiCompatClient::from_env(
                 OpenAiCompatConfig::openai(),
             )?)),
+            ProviderKind::Gemini => Ok(Self::Gemini(OpenAiCompatClient::from_env(
+                OpenAiCompatConfig::gemini(),
+            )?)),
+            ProviderKind::OpenRouter => Ok(Self::OpenRouter(OpenAiCompatClient::from_env(
+                OpenAiCompatConfig::openrouter(),
+            )?)),
         }
     }
 
@@ -55,6 +63,8 @@ impl ProviderClient {
             Self::Anthropic(_) => ProviderKind::Anthropic,
             Self::Xai(_) => ProviderKind::Xai,
             Self::OpenAi(_) => ProviderKind::OpenAi,
+            Self::Gemini(_) => ProviderKind::Gemini,
+            Self::OpenRouter(_) => ProviderKind::OpenRouter,
         }
     }
 
@@ -64,7 +74,9 @@ impl ProviderClient {
     ) -> Result<MessageResponse, ApiError> {
         match self {
             Self::Anthropic(client) => send_via_provider(client, request).await,
-            Self::Xai(client) | Self::OpenAi(client) => send_via_provider(client, request).await,
+            Self::Xai(client) | Self::OpenAi(client) | Self::Gemini(client) | Self::OpenRouter(client) => {
+                send_via_provider(client, request).await
+            }
         }
     }
 
@@ -76,9 +88,11 @@ impl ProviderClient {
             Self::Anthropic(client) => stream_via_provider(client, request)
                 .await
                 .map(MessageStream::Anthropic),
-            Self::Xai(client) | Self::OpenAi(client) => stream_via_provider(client, request)
-                .await
-                .map(MessageStream::OpenAiCompat),
+            Self::Xai(client) | Self::OpenAi(client) | Self::Gemini(client) | Self::OpenRouter(client) => {
+                stream_via_provider(client, request)
+                    .await
+                    .map(MessageStream::OpenAiCompat)
+            }
         }
     }
 }

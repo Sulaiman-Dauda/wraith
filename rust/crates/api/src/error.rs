@@ -66,12 +66,22 @@ impl Display for ApiError {
                 if env_vars.contains(&"ANTHROPIC_API_KEY") {
                     write!(
                         f,
-                        "No API key found. Set ANTHROPIC_API_KEY to get started.\nFor Anthropic: https://console.anthropic.com/"
+                        "No API key found. Set ANTHROPIC_API_KEY or run `wraith login`.\nFor Anthropic: https://console.anthropic.com/"
                     )
                 } else if env_vars.iter().any(|var| var.contains("OPENAI")) {
                     write!(
                         f,
                         "No API key found. Set OPENAI_API_KEY to get started.\nFor OpenAI: https://platform.openai.com/api-keys"
+                    )
+                } else if env_vars.contains(&"GEMINI_API_KEY") {
+                    write!(
+                        f,
+                        "No API key found. Set GEMINI_API_KEY to get started.\nFor Gemini: https://aistudio.google.com/app/apikey"
+                    )
+                } else if env_vars.contains(&"OPENROUTER_API_KEY") {
+                    write!(
+                        f,
+                        "No API key found. Set OPENROUTER_API_KEY to get started.\nFor OpenRouter: https://openrouter.ai/keys"
                     )
                 } else {
                     write!(

@@ -1,0 +1,12 @@
+[
+  {
+    "content": "Analyze all changed files for bugs and correctness issues",
+    "activeForm": "Analyzing changed files for bugs and correctness issues",
+    "status": "in_progress"
+  },
+  {
+    "content": "Deliver structured bughunter report",
+    "activeForm": "Delivering bughunter report",
+    "status": "pending"
+  }
+]

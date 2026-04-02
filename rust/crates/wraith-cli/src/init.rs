@@ -44,19 +44,19 @@ pub(crate) struct InitReport {
 impl InitReport {
     #[must_use]
     pub(crate) fn render(&self) -> String {
-        let mut lines = vec![
-            "Init".to_string(),
-            format!("  Project          {}", self.project_root.display()),
-        ];
+        let root_display = self.project_root.display().to_string();
+        let mut rows: Vec<(&str, String)> = vec![("Project", root_display)];
         for artifact in &self.artifacts {
-            lines.push(format!(
-                "  {:<16} {}",
-                artifact.name,
-                artifact.status.label()
-            ));
+            let icon = match artifact.status {
+                InitStatus::Created => "+ ",
+                InitStatus::Updated => "~ ",
+                InitStatus::Skipped => "· ",
+            };
+            rows.push((artifact.name, format!("{icon}{}", artifact.status.label())));
         }
-        lines.push("  Next step        Review and tailor the generated guidance".to_string());
-        lines.join("\n")
+        rows.push(("Next step", "Review and tailor the generated guidance".to_string()));
+        let row_refs: Vec<(&str, &str)> = rows.iter().map(|(k, v)| (*k, v.as_str())).collect();
+        crate::render::render_glass_panel("Init", &row_refs, 62, true)
     }
 }
 

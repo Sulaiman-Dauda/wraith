@@ -2,7 +2,7 @@
 name: "Bug Fixer"
 description: "Use when fixing bugs, errors, compilation failures, or issues identified by the Code Reviewer. Resolves problems found during code review."
 tools: [read, edit, search, execute]
-model: "Claude Opus 4"
+model: "claude-opus-4-6"
 user-invocable: true
 argument-hint: "Describe the bug or paste the Code Reviewer's issue list"
 ---

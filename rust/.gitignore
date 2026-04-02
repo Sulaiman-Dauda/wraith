@@ -1,3 +1,6 @@
 target/
 .omx/
 .wraith-agents/
+# Wraith local artifacts
+.wraith/settings.local.json
+.wraith/sessions/

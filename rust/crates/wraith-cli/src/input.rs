@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::io::{self, IsTerminal, Write};
 
-use crossterm::cursor::{MoveToColumn, MoveUp};
+use crossterm::cursor::{MoveDown, MoveToColumn, MoveUp};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use crossterm::queue;
 use crossterm::style::{Color, Print, ResetColor, SetForegroundColor};
@@ -30,11 +30,11 @@ impl EditorMode {
         }
 
         Some(match self {
-            Self::Plain => "PLAIN",
-            Self::Insert => "INSERT",
-            Self::Normal => "NORMAL",
-            Self::Visual => "VISUAL",
-            Self::Command => "COMMAND",
+            Self::Plain => "▸PLAIN",
+            Self::Insert => "▸INSERT",
+            Self::Normal => "▸NORMAL",
+            Self::Visual => "▸VISUAL",
+            Self::Command => "▸CMD",
         })
     }
 }
@@ -170,7 +170,20 @@ impl EditSession {
         if self.rendered_cursor_row > 0 {
             queue!(out, MoveUp(to_u16(self.rendered_cursor_row)?))?;
         }
-        queue!(out, MoveToColumn(0), Clear(ClearType::FromCursorDown))?;
+        // Clear only the lines we rendered (not FromCursorDown) to preserve
+        // the pre-drawn bottom border of the input box below.
+        for i in 0..self.rendered_lines {
+            queue!(out, MoveToColumn(0), Clear(ClearType::CurrentLine))?;
+            if i + 1 < self.rendered_lines {
+                queue!(out, MoveDown(1))?;
+            }
+        }
+        // Move back to the first rendered line
+        let lines_down = self.rendered_lines.saturating_sub(1);
+        if lines_down > 0 {
+            queue!(out, MoveUp(to_u16(lines_down)?))?;
+        }
+        queue!(out, MoveToColumn(0))?;
         out.flush()
     }
 
@@ -225,6 +238,11 @@ impl EditSession {
     }
 
     fn cursor_layout(&self, prompt: &str) -> (usize, usize, usize) {
+        let term_cols = crossterm::terminal::size()
+            .map(|(c, _)| c as usize)
+            .unwrap_or(80)
+            .max(1);
+        let prompt_width = visible_prompt_width(prompt);
         let active_text = self.active_text();
         let cursor = if self.mode == EditorMode::Command {
             self.command_cursor
@@ -232,15 +250,76 @@ impl EditSession {
             self.cursor
         };
 
+        // Logical lines split by explicit newlines
+        let logical_lines: Vec<&str> = active_text.split('\n').collect();
+
+        // Which logical line the cursor is on, and column within that line
         let cursor_prefix = &active_text[..cursor];
-        let cursor_row = cursor_prefix.bytes().filter(|byte| *byte == b'\n').count();
-        let cursor_col = match cursor_prefix.rsplit_once('\n') {
+        let cursor_logical_row = cursor_prefix.bytes().filter(|b| *b == b'\n').count();
+        let cursor_col_in_logical = match cursor_prefix.rsplit_once('\n') {
             Some((_, suffix)) => suffix.chars().count(),
-            None => prompt.chars().count() + cursor_prefix.chars().count(),
+            None => cursor_prefix.chars().count(),
         };
-        let total_lines = active_text.bytes().filter(|byte| *byte == b'\n').count() + 1;
-        (cursor_row, cursor_col, total_lines)
+
+        // Visual (terminal) rows occupied by one logical line.
+        // Line 0 starts after the prompt; subsequent lines start at column 0.
+        let visual_rows_for = |line_idx: usize, line: &str| -> usize {
+            let len = line.chars().count();
+            if line_idx == 0 {
+                (prompt_width + len).div_ceil(term_cols).max(1)
+            } else {
+                len.div_ceil(term_cols).max(1)
+            }
+        };
+
+        // Cursor visual row = visual rows for all preceding logical lines
+        // + rows consumed within the current logical line
+        let mut cursor_visual_row: usize = 0;
+        for (i, line) in logical_lines.iter().enumerate().take(cursor_logical_row) {
+            cursor_visual_row += visual_rows_for(i, line);
+        }
+        let col_on_cursor_line = if cursor_logical_row == 0 {
+            prompt_width + cursor_col_in_logical
+        } else {
+            cursor_col_in_logical
+        };
+        cursor_visual_row += col_on_cursor_line / term_cols;
+
+        // Cursor visual column
+        let cursor_visual_col = col_on_cursor_line % term_cols;
+
+        // Total visual lines across all logical lines
+        let total_visual_lines = logical_lines
+            .iter()
+            .enumerate()
+            .map(|(i, line)| visual_rows_for(i, line))
+            .sum::<usize>()
+            .max(1);
+
+        (cursor_visual_row, cursor_visual_col, total_visual_lines)
     }
+}
+
+/// Return the visible character width of a prompt string, ignoring ANSI escape
+/// sequences (`\x1b[...m`).
+fn visible_prompt_width(prompt: &str) -> usize {
+    let mut width = 0usize;
+    let mut chars = prompt.chars();
+    while let Some(ch) = chars.next() {
+        if ch == '\x1b' {
+            // Skip ESC [ ... <letter> sequence
+            if chars.next() == Some('[') {
+                for next in chars.by_ref() {
+                    if next.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+            }
+        } else {
+            width += 1;
+        }
+    }
+    width
 }
 
 enum KeyAction {
@@ -278,6 +357,10 @@ impl LineEditor {
             vim_enabled: false,
             completion_state: None,
         }
+    }
+
+    pub fn set_prompt(&mut self, prompt: impl Into<String>) {
+        self.prompt = prompt.into();
     }
 
     pub fn push_history(&mut self, entry: impl Into<String>) {

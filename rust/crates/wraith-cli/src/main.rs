@@ -17,18 +17,18 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use api::{
     resolve_startup_auth_source, AuthSource, AnthropicClient, ContentBlockDelta, InputContentBlock,
-    InputMessage, MessageRequest, MessageResponse, OutputContentBlock,
+    InputMessage, MessageRequest, MessageResponse, OutputContentBlock, ProviderClient,
     StreamEvent as ApiStreamEvent, ToolChoice, ToolDefinition, ToolResultContentBlock,
 };
 
 use commands::{
-    handle_agents_slash_command, handle_plugins_slash_command, handle_skills_slash_command,
-    render_slash_command_help, resume_supported_slash_commands, slash_command_specs,
-    suggest_slash_commands, SlashCommand,
+    handle_agents_slash_command, handle_branch_slash_command, handle_plugins_slash_command,
+    handle_skills_slash_command, handle_worktree_slash_command, render_slash_command_help,
+    resume_supported_slash_commands, slash_command_specs, suggest_slash_commands, SlashCommand,
 };
 use init::initialize_repo;
 use plugins::{PluginManager, PluginManagerConfig};
-use render::{render_glass_panel, render_wraith_banner, MarkdownStreamState, Spinner, TerminalRenderer};
+use render::{format_ai_label, format_turn_status, input_box_margin, render_glass_panel, render_input_hints, render_input_top_border, render_separator, render_welcome_panel, render_wraith_banner, MarkdownStreamState, Spinner, TerminalRenderer};
 use runtime::{
     clear_oauth_credentials, generate_pkce_pair, generate_state, load_system_prompt,
     parse_oauth_callback_request_target, save_oauth_credentials, ApiClient, ApiRequest,
@@ -41,6 +41,29 @@ use serde_json::json;
 use tools::GlobalToolRegistry;
 
 const DEFAULT_MODEL: &str = "claude-opus-4-6";
+
+fn detect_default_model() -> String {
+    if let Ok(val) = env::var("WRAITH_MODEL") {
+        return resolve_model_alias(&val).to_string();
+    }
+    if env::var("ANTHROPIC_API_KEY").is_ok() {
+        return DEFAULT_MODEL.to_string();
+    }
+    if env::var("GEMINI_API_KEY").is_ok() {
+        return "gemini-2.5-flash".to_string();
+    }
+    if env::var("OPENROUTER_API_KEY").is_ok() {
+        return "anthropic/claude-sonnet-4".to_string();
+    }
+    if env::var("XAI_API_KEY").is_ok() {
+        return "grok-3".to_string();
+    }
+    if env::var("OPENAI_API_KEY").is_ok() {
+        return "gpt-4o".to_string();
+    }
+    DEFAULT_MODEL.to_string()
+}
+
 fn max_tokens_for_model(model: &str) -> u32 {
     if model.contains("opus") {
         32_000
@@ -65,17 +88,20 @@ fn main() {
 }
 
 fn render_cli_error(problem: &str) -> String {
-    let mut lines = vec!["Error".to_string()];
-    for (index, line) in problem.lines().enumerate() {
-        let label = if index == 0 {
-            "  Problem          "
-        } else {
-            "                   "
-        };
-        lines.push(format!("{label}{line}"));
-    }
-    lines.push("  Help             wraith --help".to_string());
-    lines.join("\n")
+    let color = io::stdout().is_terminal();
+    let rows: Vec<(&str, &str)> = problem
+        .lines()
+        .enumerate()
+        .map(|(i, line)| {
+            if i == 0 {
+                ("Problem", line)
+            } else {
+                ("", line)
+            }
+        })
+        .chain(std::iter::once(("Help", "wraith --help")))
+        .collect();
+    render_glass_panel("\x1b[38;2;192;64;64m✗ Error\x1b[0m", &rows, 62, color)
 }
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -168,7 +194,7 @@ impl CliOutputFormat {
 
 #[allow(clippy::too_many_lines)]
 fn parse_args(args: &[String]) -> Result<CliAction, String> {
-    let mut model = DEFAULT_MODEL.to_string();
+    let mut model = detect_default_model();
     let mut output_format = CliOutputFormat::Text;
     let mut permission_mode = default_permission_mode();
     let mut wants_version = false;
@@ -657,7 +683,7 @@ struct ResumeCommandOutcome {
     message: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 struct StatusContext {
     cwd: PathBuf,
     session_path: Option<PathBuf>,
@@ -774,12 +800,14 @@ fn format_cost_report(usage: TokenUsage) -> String {
 }
 
 fn format_resume_report(session_path: &str, message_count: usize, turns: u32) -> String {
-    format!(
-        "Session resumed
-  Session file     {session_path}
-  History          {message_count} messages · {turns} turns
-  Next             /status · /diff · /export"
-    )
+    let color = io::stdout().is_terminal();
+    let history = format!("{message_count} messages · {turns} turns");
+    let rows: &[(&str, &str)] = &[
+        ("Session file", session_path),
+        ("History", &history),
+        ("Next", "/status · /diff · /export"),
+    ];
+    render_glass_panel("Session resumed", rows, 62, color)
 }
 
 fn format_compact_report(removed: usize, resulting_messages: usize, skipped: bool) -> String {
@@ -975,24 +1003,120 @@ fn run_resume_command(
     }
 }
 
+/// Build a prompt string showing only the last 2 path components.
+///
+/// Examples: `wraith ~wraith/rust git:(main) ❯ ` or `wraith ~/rust ❯ `
+fn build_repl_prompt(session_path: &Path, turn_count: Option<usize>) -> String {
+    let cwd = env::current_dir().ok();
+    let dir_label = cwd.as_ref().map_or_else(
+        || "~".to_string(),
+        |path| {
+            let home = env::var("HOME").ok().map(PathBuf::from);
+            let rel = match home {
+                Some(ref h) if path.starts_with(h) => {
+                    format!("~/{}", path.strip_prefix(h).unwrap_or(path).display())
+                }
+                _ => path.display().to_string(),
+            };
+            // Keep only the last 2 components (with ~ prefix if under home)
+            let parts: Vec<&str> = rel.split('/').filter(|s| !s.is_empty()).collect();
+            if parts.len() <= 2 {
+                rel
+            } else {
+                let last_two = &parts[parts.len() - 2..];
+                let prefix = if rel.starts_with('~') { "~" } else if rel.starts_with('/') { "/" } else { "" };
+                format!("{prefix}{}/{}", last_two[0], last_two[1])
+            }
+        },
+    );
+
+    let git_branch = status_context(Some(session_path))
+        .ok()
+        .and_then(|ctx| ctx.git_branch);
+
+    let turn_prefix = match turn_count {
+        Some(n) => format!("\x1b[38;2;58;90;120m[{}]\x1b[0m ", n),
+        None => String::new(),
+    };
+    
+    match git_branch {
+        Some(branch) => format!(
+            "{left_border}{turn_prefix}\x1b[38;2;88;120;160m{dir_label}\x1b[0m \x1b[38;2;0;229;204mgit:({branch})\x1b[0m \x1b[38;2;0;229;204m❯\x1b[0m ",
+            left_border = build_prompt_left_border(),
+        ),
+        None => format!(
+            "{left_border}{turn_prefix}\x1b[38;2;88;120;160m{dir_label}\x1b[0m \x1b[38;2;0;229;204m❯\x1b[0m ",
+            left_border = build_prompt_left_border(),
+        ),
+    }
+}
+
+/// Build the left-side border prefix for the prompt so it sits inside the input box.
+fn build_prompt_left_border() -> String {
+    let margin = input_box_margin();
+    let pad = " ".repeat(margin);
+    format!("{pad}\x1b[38;2;0;180;160m│\x1b[0m ")
+}
+
 fn run_repl(
     model: String,
     allowed_tools: Option<AllowedToolSet>,
     permission_mode: PermissionMode,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut cli = LiveCli::new(model, true, allowed_tools, permission_mode)?;
-    let mut editor = input::LineEditor::new("› ", slash_command_completion_candidates());
+    let session_start = Instant::now();
+    let mut turn_count: usize = 0;
+    let mut total_input_tokens: u32 = 0;
+    let mut total_output_tokens: u32 = 0;
+    let prompt_str = build_repl_prompt(&cli.session.path, None);
+    let mut editor = input::LineEditor::new(&prompt_str, slash_command_completion_candidates());
+    let color = io::stdout().is_terminal();
     println!("{}", cli.startup_banner());
+    println!(); // breathing room between banner and first input
+    let mut needs_border = true;
 
     loop {
+        // Draw the input box: hints + top border + (input line) + bottom border.
+        // Print all parts to ensure bottom border scrolls into view,
+        // then move cursor back up so the editor renders on the input line.
+        if needs_border {
+            let hints = render_input_hints(color);
+            let top = render_input_top_border(color);
+            let bot = render_separator(color);
+            println!("{hints}");
+            println!("{top}");
+            println!();     // blank line — input renders here
+            println!("{bot}");
+            // Move cursor up 2 lines: past bottom border → to the input line
+            print!("\x1b[2A\r");
+            io::stdout().flush().ok();
+        }
+
         match editor.read_line()? {
             input::ReadOutcome::Submit(input) => {
+                // After finalize_render, cursor is on the line below input (= bottom border).
+                // Clear the pre-drawn bottom border line.
+                print!("\x1b[2K\r");
+                io::stdout().flush().ok();
+
                 let trimmed = input.trim();
                 if trimmed.is_empty() {
+                    needs_border = false;
                     continue;
                 }
+                needs_border = true;
+
+                // Re-draw the bottom border cleanly after submitted input
+                println!("{}", render_separator(color));
+                println!(); // bottom margin
+
                 if matches!(trimmed, "/exit" | "/quit") {
                     cli.persist_session()?;
+                    let elapsed = session_start.elapsed().as_secs_f64();
+                    let total_tokens = total_input_tokens + total_output_tokens;
+                    println!(
+                        "\n  \x1b[38;2;58;90;120m👋 Session complete · {turn_count} turns · {total_tokens} tokens · {elapsed:.1}s\x1b[0m\n"
+                    );
                     break;
                 }
                 if let Some(command) = SlashCommand::parse(trimmed) {
@@ -1002,11 +1126,31 @@ fn run_repl(
                     continue;
                 }
                 editor.push_history(&input);
-                cli.run_turn(&input)?;
+                let (inp, out) = cli.run_turn(&input)?;
+                turn_count += 1;
+                total_input_tokens += inp;
+                total_output_tokens += out;
+
+                // Refresh prompt in case cwd changed during the turn
+                let new_prompt = build_repl_prompt(&cli.session.path, Some(turn_count));
+                editor.set_prompt(new_prompt);
             }
-            input::ReadOutcome::Cancel => {}
+            input::ReadOutcome::Cancel => {
+                // Clear the pre-drawn bottom border
+                print!("\x1b[2K\r");
+                io::stdout().flush().ok();
+                needs_border = true;
+            }
             input::ReadOutcome::Exit => {
+                // Clear the pre-drawn bottom border
+                print!("\x1b[2K\r");
+                io::stdout().flush().ok();
                 cli.persist_session()?;
+                let elapsed = session_start.elapsed().as_secs_f64();
+                let total_tokens = total_input_tokens + total_output_tokens;
+                println!(
+                    "\n  \x1b[38;2;58;90;120m👋 Session complete · {turn_count} turns · {total_tokens} tokens · {elapsed:.1}s\x1b[0m\n"
+                );
                 break;
             }
         }
@@ -1094,52 +1238,46 @@ impl LiveCli {
         );
         let mut out = render_wraith_banner("The ghost in your terminal.", &info_line, color);
 
-        let hint = if has_wraith_md {
-            "/help · /status · ask for a task"
-        } else {
-            "/init · /help · /status"
-        };
-
-        let dim_on = if color { "\x1b[2m" } else { "" };
-        let reset = if color { "\x1b[0m" } else { "" };
-
         out.push('\n');
-        out.push_str(&format!(
-            "  {dim_on}Quick start{reset}      {hint}\n  {dim_on}Editor{reset}           Tab completes slash commands · /vim toggles modal editing\n  {dim_on}Multiline{reset}        Shift+Enter or Ctrl+J inserts a newline",
-        ));
-        if !has_wraith_md {
-            out.push('\n');
-            out.push_str(&format!(
-                "  {dim_on}First run{reset}        /init scaffolds WRAITH.md, .wraith.json, and local session files"
-            ));
-        }
+        out.push_str(&render_welcome_panel(has_wraith_md, color));
         out
     }
 
-    fn run_turn(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error>> {
+    fn run_turn(&mut self, input: &str) -> Result<(u32, u32), Box<dyn std::error::Error>> {
         let mut spinner = Spinner::new();
         let mut stdout = io::stdout();
         spinner.tick(
-            "🦀 Thinking...",
+            "▊ Reasoning...",
             TerminalRenderer::new().color_theme(),
             &mut stdout,
         )?;
+        let start_time = Instant::now();
         let mut permission_prompter = CliPermissionPrompter::new(self.permission_mode);
         let result = self.runtime.run_turn(input, Some(&mut permission_prompter));
+        let duration = start_time.elapsed();
         match result {
-            Ok(_) => {
-                spinner.finish(
-                    "✨ Done",
-                    TerminalRenderer::new().color_theme(),
-                    &mut stdout,
-                )?;
+            Ok(summary) => {
+                spinner.clear(&mut stdout)?;
+                // Print a thin status line with model + token counts + timing
+                let usage = summary.usage;
+                let context_tokens = usage.input_tokens + usage.output_tokens;
+                println!(
+                    "{}",
+                    format_turn_status(
+                        &self.model,
+                        usage.input_tokens,
+                        usage.output_tokens,
+                        context_tokens,
+                        duration
+                    )
+                );
                 println!();
                 self.persist_session()?;
-                Ok(())
+                Ok((usage.input_tokens, usage.output_tokens))
             }
             Err(error) => {
                 spinner.fail(
-                    "❌ Request failed",
+                    "Request failed",
                     TerminalRenderer::new().color_theme(),
                     &mut stdout,
                 )?;
@@ -1154,7 +1292,7 @@ impl LiveCli {
         output_format: CliOutputFormat,
     ) -> Result<(), Box<dyn std::error::Error>> {
         match output_format {
-            CliOutputFormat::Text => self.run_turn(input),
+            CliOutputFormat::Text => self.run_turn(input).map(|_| ()),
             CliOutputFormat::Json => self.run_prompt_json(input),
         }
     }
@@ -1285,24 +1423,77 @@ impl LiveCli {
                 Self::print_skills(args.as_deref())?;
                 false
             }
-            SlashCommand::Branch { .. } => {
-                eprintln!(
-                    "{}",
-                    render_mode_unavailable("branch", "git branch commands")
-                );
+            SlashCommand::Branch { action, target } => {
+                let cwd = env::current_dir()?;
+                match handle_branch_slash_command(
+                    action.as_deref(),
+                    target.as_deref(),
+                    &cwd,
+                ) {
+                    Ok(output) => eprintln!(
+                        "{}",
+                        render_glass_panel(
+                            "Branch",
+                            &[("Result", output.as_str())],
+                            66,
+                            io::stdout().is_terminal(),
+                        )
+                    ),
+                    Err(e) => eprintln!(
+                        "{}",
+                        render_glass_panel(
+                            "Branch · Error",
+                            &[("Detail", &e.to_string())],
+                            66,
+                            io::stdout().is_terminal(),
+                        )
+                    ),
+                }
                 false
             }
-            SlashCommand::Worktree { .. } => {
-                eprintln!(
-                    "{}",
-                    render_mode_unavailable("worktree", "git worktree commands")
-                );
+            SlashCommand::Worktree {
+                action,
+                path,
+                branch,
+            } => {
+                let cwd = env::current_dir()?;
+                match handle_worktree_slash_command(
+                    action.as_deref(),
+                    path.as_deref(),
+                    branch.as_deref(),
+                    &cwd,
+                ) {
+                    Ok(output) => eprintln!(
+                        "{}",
+                        render_glass_panel(
+                            "Worktree",
+                            &[("Result", output.as_str())],
+                            66,
+                            io::stdout().is_terminal(),
+                        )
+                    ),
+                    Err(e) => eprintln!(
+                        "{}",
+                        render_glass_panel(
+                            "Worktree · Error",
+                            &[("Detail", &e.to_string())],
+                            66,
+                            io::stdout().is_terminal(),
+                        )
+                    ),
+                }
                 false
             }
-            SlashCommand::CommitPushPr { .. } => {
+            SlashCommand::CommitPushPr { context } => {
+                let ctx = context.as_deref().unwrap_or_default();
                 eprintln!(
                     "{}",
-                    render_mode_unavailable("commit-push-pr", "commit + push + PR automation")
+                    render_glass_panel(
+                        "Commit/Push/PR",
+                        &[("Note", "Use via the AI agent: ask it to commit, push, and open a PR. Provide context for the commit message and PR body."), ("Context", if ctx.is_empty() { "(none provided)" } else { ctx })],
+                        66,
+                        io::stdout().is_terminal(),
+                    )
                 );
                 false
             }
@@ -1333,7 +1524,7 @@ impl LiveCli {
                     estimated_tokens: self.runtime.estimated_tokens(),
                 },
                 self.permission_mode.as_str(),
-                &status_context(Some(&self.session.path)).expect("status context should load"),
+                &status_context(Some(&self.session.path)).unwrap_or_default(),
             )
         );
     }
@@ -1989,16 +2180,6 @@ fn append_repl_command_suggestions(lines: &mut Vec<String>, name: &str) {
     );
 }
 
-fn render_mode_unavailable(command: &str, label: &str) -> String {
-    [
-        "Command unavailable in this REPL mode".to_string(),
-        format!("  Command          /{command}"),
-        format!("  Feature          {label}"),
-        "  Tip              Use /help to find currently wired REPL commands".to_string(),
-    ]
-    .join("\n")
-}
-
 fn status_context(
     session_path: Option<&Path>,
 ) -> Result<StatusContext, Box<dyn std::error::Error>> {
@@ -2464,11 +2645,18 @@ fn parse_titled_body(value: &str) -> Option<(String, String)> {
 }
 
 fn render_version_report() -> String {
+    let color = io::stdout().is_terminal();
     let git_sha = GIT_SHA.unwrap_or("unknown");
     let target = BUILD_TARGET.unwrap_or("unknown");
-    format!(
-        "Wraith\n  Version          {VERSION}\n  Git SHA          {git_sha}\n  Target           {target}\n  Build date       {DEFAULT_DATE}\n\nSupport\n  Help             wraith --help\n  REPL             /help"
-    )
+    let rows: &[(&str, &str)] = &[
+        ("Version", VERSION),
+        ("Git SHA", git_sha),
+        ("Target", target),
+        ("Build date", DEFAULT_DATE),
+        ("Help", "wraith --help"),
+        ("REPL", "/help"),
+    ];
+    render_glass_panel("Wraith", rows, 52, color)
 }
 
 fn render_export_text(session: &Session) -> String {
@@ -3020,7 +3208,7 @@ impl runtime::PermissionPrompter for CliPermissionPrompter {
 
 struct DefaultRuntimeClient {
     runtime: tokio::runtime::Runtime,
-    client: AnthropicClient,
+    client: ProviderClient,
     model: String,
     enable_tools: bool,
     emit_output: bool,
@@ -3038,10 +3226,11 @@ impl DefaultRuntimeClient {
         tool_registry: GlobalToolRegistry,
         progress_reporter: Option<InternalPromptProgressReporter>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
+        let auth = resolve_cli_auth_source().ok();
+        let client = ProviderClient::from_model_with_default_auth(&model, auth)?;
         Ok(Self {
             runtime: tokio::runtime::Runtime::new()?,
-            client: AnthropicClient::from_auth(resolve_cli_auth_source()?)
-                .with_base_url(api::read_base_url()),
+            client,
             model,
             enable_tools,
             emit_output,
@@ -3098,6 +3287,7 @@ impl ApiClient for DefaultRuntimeClient {
             let mut events = Vec::new();
             let mut pending_tool: Option<(String, String, String)> = None;
             let mut saw_stop = false;
+            let mut emitted_ai_label = false;
 
             while let Some(event) = stream
                 .next_event()
@@ -3122,6 +3312,13 @@ impl ApiClient for DefaultRuntimeClient {
                     ApiStreamEvent::ContentBlockDelta(delta) => match delta.delta {
                         ContentBlockDelta::TextDelta { text } => {
                             if !text.is_empty() {
+                                if !emitted_ai_label && self.emit_output {
+                                    emitted_ai_label = true;
+                                    // Clear the spinner line before printing the AI label
+                                    write!(out, "\x1b[2K\x1b[0G{}", format_ai_label())
+                                        .and_then(|()| out.flush())
+                                        .map_err(|error| RuntimeError::new(error.to_string()))?;
+                                }
                                 if let Some(progress_reporter) = &self.progress_reporter {
                                     progress_reporter.mark_text_phase(&text);
                                 }
@@ -3341,11 +3538,11 @@ fn format_tool_call_start(name: &str, input: &str) -> String {
     let parsed: serde_json::Value =
         serde_json::from_str(input).unwrap_or(serde_json::Value::String(input.to_string()));
 
-    let detail = match name {
-        "bash" | "Bash" => format_bash_call(&parsed),
+    let (icon, detail) = match name {
+        "bash" | "Bash" => ("⚙", format_bash_call(&parsed)),
         "read_file" | "Read" => {
             let path = extract_tool_path(&parsed);
-            format!("\x1b[2m📄 Reading {path}…\x1b[0m")
+            ("📄", format!("\x1b[2mReading {path}…\x1b[0m"))
         }
         "write_file" | "Write" => {
             let path = extract_tool_path(&parsed);
@@ -3353,7 +3550,7 @@ fn format_tool_call_start(name: &str, input: &str) -> String {
                 .get("content")
                 .and_then(|value| value.as_str())
                 .map_or(0, |content| content.lines().count());
-            format!("\x1b[1;32m✏️ Writing {path}\x1b[0m \x1b[2m({lines} lines)\x1b[0m")
+            ("✏️", format!("\x1b[1;32mWriting {path}\x1b[0m \x1b[2m({lines} lines)\x1b[0m"))
         }
         "edit_file" | "Edit" => {
             let path = extract_tool_path(&parsed);
@@ -3367,48 +3564,49 @@ fn format_tool_call_start(name: &str, input: &str) -> String {
                 .or_else(|| parsed.get("newString"))
                 .and_then(|value| value.as_str())
                 .unwrap_or_default();
-            format!(
-                "\x1b[1;33m📝 Editing {path}\x1b[0m{}",
-                format_patch_preview(old_value, new_value)
-                    .map(|preview| format!("\n{preview}"))
-                    .unwrap_or_default()
-            )
+            let preview = format_patch_preview(old_value, new_value)
+                .map(|preview| format!("\n{preview}"))
+                .unwrap_or_default();
+            ("📝", format!("\x1b[1;33mEditing {path}\x1b[0m{}", preview))
         }
-        "glob_search" | "Glob" => format_search_start("🔎 Glob", &parsed),
-        "grep_search" | "Grep" => format_search_start("🔎 Grep", &parsed),
-        "web_search" | "WebSearch" => parsed
+        "glob_search" | "Glob" => ("🔎", format_search_start_detail(&parsed)),
+        "grep_search" | "Grep" => ("🔎", format_search_start_detail(&parsed)),
+        "web_search" | "WebSearch" => ("🌐", parsed
             .get("query")
             .and_then(|value| value.as_str())
             .unwrap_or("?")
-            .to_string(),
-        _ => summarize_tool_payload(input),
+            .to_string()),
+        _ => ("▸", summarize_tool_payload(input)),
     };
 
-    // Use tool_use_border color (Rgb(100, 110, 130)) for dim border
-    // and cyan bold for tool name (Rgb(0, 229, 255))
-    let border = "─".repeat(name.len() + 8);
+    // Icon + left-border style
+    let cols = render::terminal_width();
+    let header_text = format!("{icon} {name}");
+    let remaining = cols.saturating_sub(header_text.len() + 2); // account for 2-space prefix
+    let right_fill = "─".repeat(remaining);
     format!(
-        "\x1b[38;2;100;110;130m╭─ \x1b[1;38;2;0;229;255m{name}\x1b[0;38;2;100;110;130m ─╮\x1b[0m\n\x1b[38;2;100;110;130m│\x1b[0m {detail}\n\x1b[38;2;100;110;130m╰{border}╯\x1b[0m"
+        "  \x1b[1;38;2;0;229;204m{header_text}\x1b[0m \x1b[38;2;30;42;56m{right_fill}\x1b[0m\n  \x1b[38;2;30;42;56m│\x1b[0m {detail}"
     )
 }
 
 fn format_tool_result(name: &str, output: &str, is_error: bool) -> String {
     let icon = if is_error {
-        "\x1b[38;2;255;82;82m✗\x1b[0m"  // RGB red for error
+        "\x1b[38;2;192;64;64m✗\x1b[0m"   // Cyber Neon red
     } else {
-        "\x1b[38;2;0;230;118m✓\x1b[0m"  // RGB green for success
+        "\x1b[38;2;34;212;122m✓\x1b[0m"  // Cyber Neon green
     };
     if is_error {
         let summary = truncate_for_summary(output.trim(), 160);
         return if summary.is_empty() {
-            format!("{icon} \x1b[38;2;100;110;130m{name}\x1b[0m")
+            format!("{icon} \x1b[38;2;58;90;120m{name}\x1b[0m")
         } else {
-            format!("{icon} \x1b[38;2;100;110;130m{name}\x1b[0m\n\x1b[38;2;255;82;82m{summary}\x1b[0m")
+            format!("{icon} \x1b[38;2;58;90;120m{name}\x1b[0m\n\x1b[38;2;192;64;64m{summary}\x1b[0m")
         };
     }
 
     let parsed: serde_json::Value =
         serde_json::from_str(output).unwrap_or(serde_json::Value::String(output.to_string()));
+    // No bottom border for cleaner icon format
     match name {
         "bash" | "Bash" => format_bash_result(icon, &parsed),
         "read_file" | "Read" => format_read_result(icon, &parsed),
@@ -3437,7 +3635,7 @@ fn extract_tool_path(parsed: &serde_json::Value) -> String {
         .to_string()
 }
 
-fn format_search_start(label: &str, parsed: &serde_json::Value) -> String {
+fn format_search_start_detail(parsed: &serde_json::Value) -> String {
     let pattern = parsed
         .get("pattern")
         .and_then(|value| value.as_str())
@@ -3446,7 +3644,7 @@ fn format_search_start(label: &str, parsed: &serde_json::Value) -> String {
         .get("path")
         .and_then(|value| value.as_str())
         .unwrap_or(".");
-    format!("{label} {pattern}\n\x1b[2min {scope}\x1b[0m")
+    format!("{pattern}\n\x1b[2min {scope}\x1b[0m")
 }
 
 fn format_patch_preview(old_value: &str, new_value: &str) -> Option<String> {
@@ -4101,6 +4299,7 @@ mod tests {
         CliAction, CliOutputFormat, InternalPromptProgressEvent, InternalPromptProgressState,
         SlashCommand, StatusUsage, DEFAULT_MODEL,
     };
+    use crate::render;
     use api::{MessageResponse, OutputContentBlock, Usage};
     use plugins::{PluginTool, PluginToolDefinition, PluginToolPermission};
     use runtime::{AssistantEvent, ContentBlock, ConversationMessage, MessageRole, PermissionMode};
@@ -4479,10 +4678,10 @@ mod tests {
 
     #[test]
     fn resume_report_uses_sectioned_layout() {
-        let report = format_resume_report("session.json", 14, 6);
+        let report = render::strip_ansi(&format_resume_report("session.json", 14, 6));
         assert!(report.contains("Session resumed"));
-        assert!(report.contains("Session file     session.json"));
-        assert!(report.contains("History          14 messages · 6 turns"));
+        assert!(report.contains("Session file  session.json"));
+        assert!(report.contains("History       14 messages · 6 turns"));
         assert!(report.contains("/status · /diff · /export"));
     }
 

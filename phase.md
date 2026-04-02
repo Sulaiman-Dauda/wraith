@@ -578,7 +578,7 @@ Test key tools with real interactions:
   - Links work
 - [x] **9.5** Update `CHANGELOG.md` with complete v0.1.0 feature list
 - [x] **9.6** Update `Cargo.toml` version to `0.1.0`
-- [x] **9.7** Git commit: `"docs: complete documentation for v0.1.0"` *(deferred: screenshots require live terminal)*
+- [x] **9.7** Git commit: `"docs: complete documentation for v0.1.0"` _(deferred: screenshots require live terminal)_
 
 **Exit Criteria**: README is launch-ready with screenshots. Documentation covers all major features. Version is 0.1.0.
 

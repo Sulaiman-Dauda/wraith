@@ -11,6 +11,27 @@ use syntect::highlighting::{Theme, ThemeSet};
 use syntect::parsing::SyntaxSet;
 use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
 
+// ── Cyber Neon palette ────────────────────────────────────────
+// Background tones
+const BORDER_DIM: Color = Color::Rgb { r: 30, g: 42, b: 56 };     // #1E2A38
+const TEXT_DIM: Color = Color::Rgb { r: 58, g: 90, b: 120 };       // #3A5A78
+// Accent colours
+pub const CYAN: Color = Color::Rgb { r: 0, g: 229, b: 204 };      // #00E5CC
+pub const VIOLET: Color = Color::Rgb { r: 153, g: 102, b: 255 };   // #9966FF
+pub const AMBER: Color = Color::Rgb { r: 240, g: 160, b: 48 };     // #F0A030
+pub const GREEN: Color = Color::Rgb { r: 34, g: 212, b: 122 };     // #22D47A
+pub const RED: Color = Color::Rgb { r: 192, g: 64, b: 64 };        // #C04040
+
+// ── Raw ANSI escape constants (for pre-formatted banner / panel output) ──
+const ANSI_BORDER: &str = "\x1b[38;2;30;42;56m";     // #1E2A38
+const ANSI_DIM: &str    = "\x1b[38;2;58;90;120m";     // #3A5A78
+const ANSI_CYAN: &str   = "\x1b[38;2;0;229;204m";     // #00E5CC
+const ANSI_VIOLET: &str = "\x1b[38;2;153;102;255m";   // #9966FF
+const ANSI_GREEN: &str  = "\x1b[38;2;34;212;122m";    // #22D47A
+const ANSI_AMBER: &str  = "\x1b[38;2;240;160;48m";    // #F0A030
+const ANSI_NEON: &str   = "\x1b[38;2;0;180;160m";     // #00B4A0  (input box accent)
+const ANSI_RST: &str    = "\x1b[0m";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ColorTheme {
     heading: Color,
@@ -30,18 +51,18 @@ pub struct ColorTheme {
 impl Default for ColorTheme {
     fn default() -> Self {
         Self {
-            heading: Color::Rgb { r: 0, g: 229, b: 255 },
-            emphasis: Color::Rgb { r: 187, g: 134, b: 252 },
-            strong: Color::Rgb { r: 255, g: 202, b: 40 },
-            inline_code: Color::Rgb { r: 0, g: 229, b: 255 },
-            link: Color::Rgb { r: 187, g: 134, b: 252 },
-            quote: Color::Rgb { r: 100, g: 110, b: 130 },
-            table_border: Color::Rgb { r: 100, g: 110, b: 130 },
-            code_block_border: Color::Rgb { r: 187, g: 134, b: 252 },
-            spinner_active: Color::Rgb { r: 0, g: 229, b: 255 },
-            spinner_done: Color::Rgb { r: 0, g: 229, b: 255 },
-            spinner_failed: Color::Rgb { r: 255, g: 85, b: 85 },
-            tool_use_border: Color::Rgb { r: 100, g: 110, b: 130 },
+            heading: CYAN,
+            emphasis: VIOLET,
+            strong: AMBER,
+            inline_code: CYAN,
+            link: VIOLET,
+            quote: TEXT_DIM,
+            table_border: BORDER_DIM,
+            code_block_border: BORDER_DIM,
+            spinner_active: CYAN,
+            spinner_done: GREEN,
+            spinner_failed: RED,
+            tool_use_border: BORDER_DIM,
         }
     }
 }
@@ -53,16 +74,7 @@ pub struct Spinner {
 
 impl Spinner {
     const FRAMES: [&str; 10] = [
-        "▰▱▱▱▱▱▱",
-        "▰▰▱▱▱▱▱",
-        "▰▰▰▱▱▱▱",
-        "▰▰▰▰▱▱▱",
-        "▱▰▰▰▰▱▱",
-        "▱▱▰▰▰▰▱",
-        "▱▱▱▰▰▰▰",
-        "▱▱▱▱▰▰▰",
-        "▱▱▱▱▱▰▰",
-        "▱▱▱▱▱▱▰",
+        "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏",
     ];
 
     #[must_use]
@@ -91,6 +103,7 @@ impl Spinner {
         out.flush()
     }
 
+    #[allow(dead_code)]
     pub fn finish(
         &mut self,
         label: &str,
@@ -98,6 +111,7 @@ impl Spinner {
         out: &mut impl Write,
     ) -> io::Result<()> {
         self.frame_index = 0;
+        // Clear the spinner line — the caller prints any follow-up.
         execute!(
             out,
             MoveToColumn(0),
@@ -106,6 +120,13 @@ impl Spinner {
             Print(format!("✔ {label}\n")),
             ResetColor
         )?;
+        out.flush()
+    }
+
+    /// Clear the spinner line without printing a replacement label.
+    pub fn clear(&mut self, out: &mut impl Write) -> io::Result<()> {
+        self.frame_index = 0;
+        execute!(out, MoveToColumn(0), Clear(ClearType::CurrentLine))?;
         out.flush()
     }
 
@@ -473,24 +494,24 @@ impl TerminalRenderer {
         } else {
             code_language
         };
+        let cols = terminal_width();
+        let header_text = format!(" {} ", language_label);
+        let remaining = cols.saturating_sub(header_text.len() + 4); // ┌─ + ─
+        let left_dash = "─";
+        let right_fill = "─".repeat(remaining);
         let _ = writeln!(
             output,
-            "{}{}",
-            format!("╭─────────────────────────────────────────────────────────")
-                .with(self.color_theme.code_block_border),
-            format!(" {language_label} ")
-                .dim()
-                .with(self.color_theme.code_block_border)
+            "  \x1b[38;2;30;42;56m┌{left_dash}\x1b[38;2;0;229;204m{language_label} \x1b[38;2;30;42;56m{right_fill}\x1b[0m"
         );
     }
 
     fn finish_code_block(&self, code_buffer: &str, code_language: &str, output: &mut String) {
         output.push_str(&self.highlight_code(code_buffer, code_language));
+        let cols = terminal_width();
+        let fill = "─".repeat(cols.saturating_sub(4)); // ─ + └ + 2 spaces
         let _ = write!(
             output,
-            "{}",
-            "╰─────────────────────────────────────────────────────────"
-                .with(self.color_theme.code_block_border)
+            "  \x1b[38;2;30;42;56m└{fill}\x1b[0m"
         );
         output.push_str("\n\n");
     }
@@ -625,7 +646,7 @@ impl MarkdownStreamState {
         let split = find_stream_safe_boundary(&self.pending)?;
         let ready = self.pending[..split].to_string();
         self.pending.drain(..split);
-        Some(renderer.markdown_to_ansi(&ready))
+        Some(apply_response_gutter(&renderer.markdown_to_ansi(&ready)))
     }
 
     #[must_use]
@@ -635,9 +656,17 @@ impl MarkdownStreamState {
             None
         } else {
             let pending = std::mem::take(&mut self.pending);
-            Some(renderer.markdown_to_ansi(&pending))
+            Some(apply_response_gutter(&renderer.markdown_to_ansi(&pending)))
         }
     }
+}
+
+/// Apply dim violet left-border gutter to AI response text
+fn apply_response_gutter(text: &str) -> String {
+    text.split('\n')
+        .map(|line| format!("\x1b[38;2;80;60;140m│\x1b[0m {}", line))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn apply_code_block_background(line: &str) -> String {
@@ -686,7 +715,7 @@ fn visible_width(input: &str) -> usize {
     strip_ansi(input).chars().count()
 }
 
-fn strip_ansi(input: &str) -> String {
+pub(crate) fn strip_ansi(input: &str) -> String {
     let mut output = String::new();
     let mut chars = input.chars().peekable();
 
@@ -719,10 +748,6 @@ fn strip_ansi(input: &str) -> String {
 /// When `color` is true, the title is rendered in cyan, borders in dim, and
 /// keys in dim. Values use the default terminal colour.
 pub fn render_glass_panel(title: &str, rows: &[(&str, &str)], width: usize, color: bool) -> String {
-    // Colours as raw ANSI — avoids crossterm queuing overhead for String building.
-    const DIM: &str = "\x1b[2m";
-    const CYAN: &str = "\x1b[38;2;0;229;255m";
-    const RESET: &str = "\x1b[0m";
 
     let panel_width = width.max(title.len() + 10).max(30);
     let key_width = rows.iter().map(|(k, _)| k.chars().count()).max().unwrap_or(8);
@@ -731,7 +756,7 @@ pub fn render_glass_panel(title: &str, rows: &[(&str, &str)], width: usize, colo
     let after_title = panel_width.saturating_sub(title.chars().count() + 5); // ┏━━ + " " + ┓
     let top_fill = "━".repeat(after_title);
     let top = if color {
-        format!("{DIM}┏━━ {RESET}{CYAN}{DIM}{title}{RESET}{DIM} {top_fill}┓{RESET}")
+        format!("{ANSI_BORDER}┏━━ {ANSI_RST}{ANSI_CYAN}{title}{ANSI_RST}{ANSI_BORDER} {top_fill}┓{ANSI_RST}")
     } else {
         format!("┏━━ {title} {top_fill}┓")
     };
@@ -746,7 +771,7 @@ pub fn render_glass_panel(title: &str, rows: &[(&str, &str)], width: usize, colo
             let val_trimmed: String = val.chars().take(val_area).collect();
             let val_padded = format!("{val_trimmed:<val_area$}");
             if color {
-                format!("{DIM}┃{RESET}  {DIM}{key:<key_width$}{RESET}  {val_padded}{DIM}┃{RESET}")
+                format!("{ANSI_BORDER}┃{ANSI_RST}  {ANSI_DIM}{key:<key_width$}{ANSI_RST}  {val_padded}{ANSI_BORDER}┃{ANSI_RST}")
             } else {
                 format!("┃  {key:<key_width$}  {val_padded}┃")
             }
@@ -756,7 +781,7 @@ pub fn render_glass_panel(title: &str, rows: &[(&str, &str)], width: usize, colo
     // Bottom border: ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
     let bottom_fill = "━".repeat(panel_width.saturating_sub(2));
     let bottom = if color {
-        format!("{DIM}┗{bottom_fill}┛{RESET}")
+        format!("{ANSI_BORDER}┗{bottom_fill}┛{ANSI_RST}")
     } else {
         format!("┗{bottom_fill}┛")
     };
@@ -765,6 +790,19 @@ pub fn render_glass_panel(title: &str, rows: &[(&str, &str)], width: usize, colo
     lines.extend(row_lines);
     lines.push(bottom);
     lines.join("\n")
+}
+
+/// Return the number of columns to use as left margin for centering content.
+///
+/// Aims to centre a block of `content_width` chars within the terminal.  Falls
+/// back to 2 when detection fails or the terminal is narrow.
+#[allow(dead_code)]
+pub fn terminal_margin(content_width: usize) -> usize {
+    let cols = terminal_width();
+    if cols <= content_width + 4 {
+        return 2;
+    }
+    (cols.saturating_sub(content_width)) / 2
 }
 
 /// Render two glass panels side-by-side.
@@ -799,10 +837,139 @@ pub fn render_glass_panel_pair(
         .join("\n")
 }
 
-/// Render the WRAITH ASCII-art banner with a cyan→violet gradient.
+/// Render the "✦ wraith" AI response label.
 ///
-/// Returns a `String` ready for `println!`. If `color` is false, returns plain
-/// text without ANSI escape codes.
+/// Printed once before the model's first text chunk. Full-width with a thin
+/// top separator.
+pub fn format_ai_label() -> String {
+    let cols = terminal_width();
+    let label = "✦ wraith";
+    let remaining = cols.saturating_sub(label.chars().count() + 3);
+    let fill = "━".repeat(remaining);
+    format!(
+        "\x1b[38;2;80;60;140m━\x1b[0m \x1b[1;38;2;153;102;255m{label}\x1b[0m \x1b[38;2;80;60;140m{fill}\x1b[0m\n"
+    )
+}
+
+/// Full-width status line shown after a successful turn.
+///
+/// Thin bar with model name, token counts, timing, and progress bar.
+pub fn format_turn_status(model: &str, input_tokens: u32, output_tokens: u32, context_tokens: u32, duration: std::time::Duration) -> String {
+    let cols = terminal_width();
+    let total = input_tokens + output_tokens;
+    let secs = duration.as_secs_f64();
+    let context_window = context_window_for_model(model);
+    let percentage = ((f64::from(context_tokens) / f64::from(context_window)) * 100.0).round() as u32;
+    
+    // Create progress bar
+    let bar_width = 10;
+    let filled = (((f64::from(percentage) / 100.0) * (bar_width as f64)).round() as usize).min(bar_width);
+    let empty = bar_width - filled;
+    let progress_bar = format!(
+        "{}\x1b[38;2;0;229;204m{}\x1b[0m{}\x1b[38;2;30;42;56m{}\x1b[0m{} \x1b[38;2;58;90;120m{}%\x1b[0m",
+        " ",
+        "━".repeat(filled),
+        " ",
+        "░".repeat(empty),
+        " ",
+        percentage
+    );
+    
+    let pct_label = format!("{percentage}%");
+    let progress_bar_visible_width = bar_width + pct_label.len() + 5;
+    let stats = format!("{model} · {total} tokens ({input_tokens} in / {output_tokens} out) · {secs:.1}s · ");
+    let remaining = cols.saturating_sub(stats.chars().count() + progress_bar_visible_width + 3);
+    let fill = "━".repeat(remaining);
+    format!(
+        "\x1b[38;2;80;60;140m━\x1b[0m \x1b[38;2;88;120;160m{stats}\x1b[0m{progress_bar} \x1b[38;2;80;60;140m{fill}\x1b[0m"
+    )
+}
+
+/// Get context window capacity for a model
+fn context_window_for_model(model: &str) -> u32 {
+    if model.contains("opus") || model.contains("sonnet") || model.contains("haiku") {
+        200_000
+    } else if model.contains("gpt-4") {
+        128_000
+    } else if model.contains("gemini") {
+        1_000_000
+    } else {
+        128_000
+    }
+}
+
+/// Render the keyboard hints line (displayed above the input box).
+pub fn render_input_hints(color: bool) -> String {
+    let margin = input_box_margin();
+    let pad = " ".repeat(margin + 1);
+    if !color {
+        return format!("{pad}Enter · send | Ctrl+C · cancel | /exit · quit");
+    }
+    format!(
+        "{pad}\x1b[38;2;88;120;160mEnter\x1b[38;2;55;75;100m · send  \x1b[38;2;60;80;110m│\x1b[0m  \x1b[38;2;88;120;160mCtrl+C\x1b[38;2;55;75;100m · cancel  \x1b[38;2;60;80;110m│\x1b[0m  \x1b[38;2;88;120;160m/exit\x1b[38;2;55;75;100m · quit\x1b[0m"
+    )
+}
+
+/// Compute side margin for the input box (matches welcome panel: full-width).
+pub fn input_box_margin() -> usize {
+    0
+}
+
+/// Render the input box top border with corners and side margins.
+///
+/// ```text
+///   ╭──────────────────────────────────────────────────╮
+/// ```
+pub fn render_input_top_border(color: bool) -> String {
+    let cols = terminal_width();
+    let margin = input_box_margin();
+    let inner = cols.saturating_sub(margin * 2 + 2); // subtract margins + corners
+    let pad = " ".repeat(margin);
+    let fill = "─".repeat(inner);
+    if color {
+        format!("{pad}{ANSI_NEON}╭{fill}╮{ANSI_RST}")
+    } else {
+        format!("{pad}╭{fill}╮")
+    }
+}
+
+/// Render the input box bottom border with corners and side margins.
+pub fn render_separator(color: bool) -> String {
+    let cols = terminal_width();
+    let margin = input_box_margin();
+    let inner = cols.saturating_sub(margin * 2 + 2);
+    let pad = " ".repeat(margin);
+    let fill = "─".repeat(inner);
+    if color {
+        format!("{pad}{ANSI_NEON}╰{fill}╯{ANSI_RST}")
+    } else {
+        format!("{pad}╰{fill}╯")
+    }
+}
+
+/// Render the "You:" user message label with the message text.
+///
+/// Full-width separator with the label, like the AI label.
+#[allow(dead_code)]
+pub fn format_user_label() -> String {
+    let cols = terminal_width();
+    let label = "● You";
+    let remaining = cols.saturating_sub(label.chars().count() + 3);
+    let fill = "━".repeat(remaining);
+    format!(
+        "\x1b[38;2;80;60;140m━\x1b[0m \x1b[1;38;2;240;160;48m{label}{ANSI_RST} \x1b[38;2;80;60;140m{fill}{ANSI_RST}"
+    )
+}
+
+/// Return the terminal width, defaulting to 80 when detection fails.
+pub fn terminal_width() -> usize {
+    crossterm::terminal::size().map(|(c, _)| c as usize).unwrap_or(80)
+}
+
+/// Render the WRAITH ASCII-art banner — full-width responsive layout.
+///
+/// The frame stretches to fill the entire terminal width. The ASCII art is
+/// centred inside it. A status bar appears below the frame.
 pub fn render_wraith_banner(tagline: &str, info_line: &str, color: bool) -> String {
     const ART: &[&str] = &[
         " ██╗    ██╗██████╗  █████╗ ██╗████████╗██╗  ██╗",
@@ -812,37 +979,279 @@ pub fn render_wraith_banner(tagline: &str, info_line: &str, color: bool) -> Stri
         " ╚███╔███╔╝██║  ██║██║  ██║██║   ██║   ██║  ██║",
         "  ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝   ╚═╝   ╚═╝  ╚═╝",
     ];
-    let total = ART.len() as f32 - 1.0;
-    let mut lines: Vec<String> = ART
-        .iter()
-        .enumerate()
-        .map(|(i, line)| {
+
+    let cols = terminal_width();
+
+    // ── Narrow terminal fallback: skip bordered frame ────────
+    if cols < 60 {
+        let mut lines: Vec<String> = Vec::with_capacity(ART.len() + 4);
+        lines.push(String::new());
+        for (i, art_line) in ART.iter().enumerate() {
             if color {
-                let t = i as f32 / total;
-                // Interpolate cyan (0,229,255) → violet (187,134,252)
-                let r = (t * 187.0) as u8;
-                let g = (229.0 + t * (134.0_f32 - 229.0)) as u8;
-                let b = 255u8;
-                format!("\x1b[38;2;{r};{g};{b}m{line}\x1b[0m")
+                let total = ART.len() as f32 - 1.0;
+                let t = if total > 0.0 { i as f32 / total } else { 0.0 };
+                let r = (t * 153.0) as u8;
+                let g = (229.0 + t * (102.0_f32 - 229.0)) as u8;
+                let b = (204.0 + t * (255.0_f32 - 204.0)) as u8;
+                lines.push(format!("\x1b[38;2;{r};{g};{b}m{art_line}{ANSI_RST}"));
             } else {
-                (*line).to_string()
+                lines.push((*art_line).to_string());
             }
-        })
-        .collect();
+        }
+        if color {
+            lines.push(format!("  {ANSI_DIM}{tagline}{ANSI_RST}"));
+            lines.push(format!("  {ANSI_DIM}{info_line}{ANSI_RST}"));
+        } else {
+            lines.push(format!("  {tagline}"));
+            lines.push(format!("  {info_line}"));
+        }
+        lines.push(String::new());
+        return lines.join("\n");
+    }
+    // Frame spans the full terminal width (leave 0 margin)
+    let frame_inner = cols.saturating_sub(2); // subtract ║ on each side
 
-    // Tagline in dim
-    lines.push(if color {
-        format!("\x1b[2m  {tagline}\x1b[0m")
-    } else {
-        format!("  {tagline}")
-    });
+    let mut lines: Vec<String> = Vec::with_capacity(ART.len() + 12);
 
-    // Compact info line
-    lines.push(if color {
-        format!("  {info_line}")
+    // ── Top border (full-width) ─────────────────────────────────
+    let top_fill = "═".repeat(frame_inner);
+    if color {
+        lines.push(format!("{ANSI_BORDER}╔{top_fill}╗{ANSI_RST}"));
     } else {
-        format!("  {info_line}")
-    });
+        lines.push(format!("╔{top_fill}╗"));
+    }
+
+    // ── Blank line inside frame ─────────────────────────────────
+    let blank_inner = " ".repeat(frame_inner);
+    if color {
+        lines.push(format!("{ANSI_BORDER}║{ANSI_RST}{blank_inner}{ANSI_BORDER}║{ANSI_RST}"));
+    } else {
+        lines.push(format!("║{blank_inner}║"));
+    }
+
+    // ── ASCII art lines (gradient) ─────────────────────────────
+    let total = ART.len() as f32 - 1.0;
+    for (i, art_line) in ART.iter().enumerate() {
+        let line_width = art_line.chars().count();
+        let inner_pad_left = (frame_inner.saturating_sub(line_width)) / 2;
+        let inner_pad_right = frame_inner.saturating_sub(line_width + inner_pad_left);
+        let lp = " ".repeat(inner_pad_left);
+        let rp = " ".repeat(inner_pad_right);
+        if color {
+            let t = if total > 0.0 { i as f32 / total } else { 0.0 };
+            let r = (t * 153.0) as u8;
+            let g = (229.0 + t * (102.0_f32 - 229.0)) as u8;
+            let b = (204.0 + t * (255.0_f32 - 204.0)) as u8;
+            lines.push(format!(
+                "{ANSI_BORDER}║{ANSI_RST}{lp}\x1b[38;2;{r};{g};{b}m{art_line}{ANSI_RST}{rp}{ANSI_BORDER}║{ANSI_RST}"
+            ));
+        } else {
+            lines.push(format!("║{lp}{art_line}{rp}║"));
+        }
+    }
+
+    // ── Blank line after art ────────────────────────────────────
+    if color {
+        lines.push(format!("{ANSI_BORDER}║{ANSI_RST}{blank_inner}{ANSI_BORDER}║{ANSI_RST}"));
+    } else {
+        lines.push(format!("║{blank_inner}║"));
+    }
+
+    // ── Tagline (centred) ───────────────────────────────────────
+    let tag_pad_left = (frame_inner.saturating_sub(tagline.len())) / 2;
+    let tag_pad_right = frame_inner.saturating_sub(tagline.len() + tag_pad_left);
+    if color {
+        lines.push(format!(
+            "{ANSI_BORDER}║{ANSI_RST}{}{ANSI_DIM}{tagline}{ANSI_RST}{}{ANSI_BORDER}║{ANSI_RST}",
+            " ".repeat(tag_pad_left),
+            " ".repeat(tag_pad_right),
+        ));
+    } else {
+        lines.push(format!(
+            "║{}{tagline}{}║",
+            " ".repeat(tag_pad_left),
+            " ".repeat(tag_pad_right),
+        ));
+    }
+
+    // ── Bottom border ───────────────────────────────────────────
+    let bot_fill = "═".repeat(frame_inner);
+    if color {
+        lines.push(format!("{ANSI_BORDER}╚{bot_fill}╝{ANSI_RST}"));
+    } else {
+        lines.push(format!("╚{bot_fill}╝"));
+    }
+
+    // ── Status bar (below frame) ────────────────────────────────
+    // Format: ● connected │ Model: xxx │ Workspace │ v0.1.0
+    if color {
+        let model_part = info_line.split("   ").next().unwrap_or("");
+        let version_part = info_line.split("   ").last().unwrap_or("");
+        let workspace_part = info_line.split("   ").nth(1).unwrap_or("");
+
+        // Truncate model/workspace if the status bar would exceed terminal width.
+        // Fixed chrome: " ● connected  │    │    │  " = 27 visible chars
+        let chrome_len: usize = 27;
+        let budget = cols.saturating_sub(chrome_len + version_part.len());
+        let model_vis: std::borrow::Cow<'_, str> = if model_part.len() > budget / 2 {
+            let max = (budget / 2).max(3);
+            let end = model_part.floor_char_boundary(max.saturating_sub(4));
+            format!("{}…", &model_part[..end]).into()
+        } else {
+            model_part.into()
+        };
+        let ws_budget = budget.saturating_sub(model_vis.len());
+        let ws_vis: std::borrow::Cow<'_, str> = if workspace_part.len() > ws_budget {
+            let max = ws_budget.max(3);
+            let end = workspace_part.floor_char_boundary(max.saturating_sub(4));
+            format!("{}…", &workspace_part[..end]).into()
+        } else {
+            workspace_part.into()
+        };
+
+        lines.push(format!(
+            " {ANSI_GREEN}●{ANSI_RST} {ANSI_DIM}connected{ANSI_RST}  {ANSI_BORDER}│{ANSI_RST}  {ANSI_CYAN}{model_vis}{ANSI_RST}  {ANSI_BORDER}│{ANSI_RST}  {ANSI_DIM}{ws_vis}{ANSI_RST}  {ANSI_BORDER}│{ANSI_RST}  {ANSI_VIOLET}{version_part}{ANSI_RST}"
+        ));
+    }
+
+    lines.join("\n")
+}
+
+/// Render a bordered onboarding / welcome panel below the banner.
+///
+/// Full-width, with tips and shortcuts in a clean layout.
+pub fn render_welcome_panel(has_wraith_md: bool, color: bool) -> String {
+    let cols = terminal_width();
+    let frame_inner = cols.saturating_sub(2);
+
+    let mut lines: Vec<String> = Vec::with_capacity(16);
+
+    // ── Top border ─────────────────────────────────────────────
+    let top_fill = "─".repeat(frame_inner);
+    if color {
+        lines.push(format!("{ANSI_BORDER}╭{top_fill}╮{ANSI_RST}"));
+    } else {
+        lines.push(format!("╭{top_fill}╮"));
+    }
+
+    // Helper: render a row with left-aligned content, padded to fill width
+    let row = |content: &str, visible_len: usize| -> String {
+        let padding = frame_inner.saturating_sub(visible_len + 2); // 2 for "  " indent
+        if color {
+            format!("{ANSI_BORDER}│{ANSI_RST}  {content}{}{ANSI_BORDER}│{ANSI_RST}", " ".repeat(padding))
+        } else {
+            format!("│  {content}{}│", " ".repeat(padding))
+        }
+    };
+
+    // Blank row helper
+    let blank_row = || -> String {
+        let inner = " ".repeat(frame_inner);
+        if color {
+            format!("{ANSI_BORDER}│{ANSI_RST}{inner}{ANSI_BORDER}│{ANSI_RST}")
+        } else {
+            format!("│{inner}│")
+        }
+    };
+
+    // ── Section: Getting Started ────────────────────────────────
+    if color {
+        lines.push(row(
+            &format!("{ANSI_AMBER}Getting Started{ANSI_RST}"),
+            "Getting Started".len(),
+        ));
+    } else {
+        lines.push(row("Getting Started", "Getting Started".len()));
+    }
+    lines.push(blank_row());
+
+    if has_wraith_md {
+        let tips: &[(&str, &str)] = &[
+            ("Ask a question", "\"explain the auth flow in this project\""),
+            ("Edit code", "\"add error handling to the login endpoint\""),
+            ("Run commands", "\"run the test suite and fix failures\""),
+            ("Explore", "\"/help for commands · /status for context\""),
+        ];
+        for (i, (label, example)) in tips.iter().enumerate() {
+            let num = i + 1;
+            if color {
+                let content = format!(
+                    "{ANSI_DIM}{num}.{ANSI_RST} {ANSI_CYAN}{label}{ANSI_RST}  {ANSI_DIM}— {example}{ANSI_RST}"
+                );
+                let visible = format!("{num}. {label}  — {example}");
+                lines.push(row(&content, visible.chars().count()));
+            } else {
+                let content = format!("{num}. {label}  — {example}");
+                lines.push(row(&content, content.chars().count()));
+            }
+        }
+    } else {
+        let tips: &[(&str, &str)] = &[
+            ("Initialize workspace", "/init to scaffold WRAITH.md and config"),
+            ("Ask a question", "\"what does this project do?\""),
+            ("Get help", "/help to see all available commands"),
+        ];
+        for (i, (label, example)) in tips.iter().enumerate() {
+            let num = i + 1;
+            if color {
+                let content = format!(
+                    "{ANSI_DIM}{num}.{ANSI_RST} {ANSI_CYAN}{label}{ANSI_RST}  {ANSI_DIM}— {example}{ANSI_RST}"
+                );
+                let visible = format!("{num}. {label}  — {example}");
+                lines.push(row(&content, visible.chars().count()));
+            } else {
+                let content = format!("{num}. {label}  — {example}");
+                lines.push(row(&content, content.chars().count()));
+            }
+        }
+    }
+
+    lines.push(blank_row());
+
+    // ── Section: Shortcuts ──────────────────────────────────────
+    let sep = "─".repeat(frame_inner);
+    if color {
+        lines.push(format!("{ANSI_BORDER}├{sep}┤{ANSI_RST}"));
+    } else {
+        lines.push(format!("├{sep}┤"));
+    }
+
+    if color {
+        lines.push(row(
+            &format!("{ANSI_AMBER}Shortcuts{ANSI_RST}"),
+            "Shortcuts".len(),
+        ));
+    } else {
+        lines.push(row("Shortcuts", "Shortcuts".len()));
+    }
+    lines.push(blank_row());
+
+    let shortcuts: &[(&str, &str)] = &[
+        ("Tab", "autocomplete slash commands"),
+        ("Shift+Enter / Ctrl+J", "insert newline (multiline input)"),
+        ("/vim", "toggle modal editing"),
+        ("/compact", "compress conversation history"),
+    ];
+    for (key, desc) in shortcuts {
+        if color {
+            let content = format!("{ANSI_VIOLET}{key:<24}{ANSI_RST}{ANSI_DIM}{desc}{ANSI_RST}");
+            let visible = format!("{key:<24}{desc}");
+            lines.push(row(&content, visible.chars().count()));
+        } else {
+            let content = format!("{key:<24}{desc}");
+            lines.push(row(&content, content.chars().count()));
+        }
+    }
+
+    lines.push(blank_row());
+
+    // ── Bottom border ───────────────────────────────────────────
+    let bot_fill = "─".repeat(frame_inner);
+    if color {
+        lines.push(format!("{ANSI_BORDER}╰{bot_fill}╯{ANSI_RST}"));
+    } else {
+        lines.push(format!("╰{bot_fill}╯"));
+    }
 
     lines.join("\n")
 }
@@ -881,7 +1290,7 @@ mod tests {
             terminal_renderer.markdown_to_ansi("```rust\nfn hi() { println!(\"hi\"); }\n```");
         let plain_text = strip_ansi(&markdown_output);
 
-        assert!(plain_text.contains("╭─") && plain_text.contains("rust"));
+        assert!(plain_text.contains("┌─") && plain_text.contains("rust"));
         assert!(plain_text.contains("fn hi"));
         assert!(markdown_output.contains('\u{1b}'));
         assert!(markdown_output.contains("[48;2;18;24;33m"));

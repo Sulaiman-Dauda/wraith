@@ -3,7 +3,11 @@ name = "wraith-cli"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-publish.workspace = true
+repository.workspace = true
+description = "The ghost in your terminal — an AI coding agent in Rust"
+keywords = ["ai", "cli", "coding-agent", "terminal", "llm"]
+categories = ["command-line-utilities", "development-tools"]
+publish = true
 
 [[bin]]
 name = "wraith"
