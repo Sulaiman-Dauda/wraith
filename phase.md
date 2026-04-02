@@ -442,17 +442,17 @@ Systematic file-by-file replacement. Each file gets its own checklist:
 
 **Goal**: Ensure the system prompt identifies as WRAITH, not Claw or Claude.
 
-- [ ] **6.1** In `runtime/src/prompt.rs`, locate the system prompt assembly
-- [ ] **6.2** Replace all identity references:
+- [x] **6.1** In `runtime/src/prompt.rs`, locate the system prompt assembly
+- [x] **6.2** Replace all identity references:
   - "You are Claw Code" → "You are Wraith"
   - "Claw Code is..." → "Wraith is..."
   - Any "Claude Code" references → remove or replace
-- [ ] **6.3** Update the WRAITH identity in system prompt to match product positioning:
+- [x] **6.3** Update the WRAITH identity in system prompt to match product positioning:
   - "You are Wraith, an AI coding agent that lives in the terminal."
   - Reference cyberpunk personality if appropriate
-- [ ] **6.4** Verify: system prompt contains zero "claw" or "Claude" identity references
-- [ ] **6.5** Review tool descriptions for any "claw" references and update
-- [ ] **6.6** Git commit: `"feat: WRAITH system prompt identity"`
+- [x] **6.4** Verify: system prompt contains zero "claw" or "Claude" identity references
+- [x] **6.5** Review tool descriptions for any "claw" references and update
+- [x] **6.6** Git commit: `"feat: WRAITH system prompt identity"`
 
 **Exit Criteria**: The AI introduces itself as Wraith. System prompt reflects WRAITH identity. No upstream identity leakage.
 
